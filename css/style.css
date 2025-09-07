@@ -1,0 +1,57 @@
+body {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 100dvh;
+}
+
+.btn-primary-active {
+    text-decoration: underline;
+    text-decoration-thickness: 1.25px;
+}
+
+.btn-outline-primary {
+    color: var(--bs-body-color);
+}
+
+.btn-outline-primary:hover {
+    color: #ffffff !important;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0); /* klassische Methode */
+  white-space: nowrap; /* verhindert Zeilenumbruch */
+  border: 0;
+}
+
+.content-section {
+    display: none;
+}
+
+.content-section.active {
+    display: block;
+}
+
+.image-name ol {
+    padding-left: 1rem;
+    margin-bottom: 0;
+}
+
+input,
+textarea,
+select {
+    border-radius: 2px !important;
+}
+
+.social-links {
+    list-style-type: none;
+}
+
+.container {
+    border-radius: 2px !important;
+}
