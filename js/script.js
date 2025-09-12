@@ -132,7 +132,8 @@ document.querySelectorAll(".file-input").forEach(input => {
             preview.style.display = "none";
 
             const filesList = document.createElement('ol');
-            fileNameContainer.appendChild(ol);
+            fileNameContainer.appendChild(filesList);
+
 
             const sizeParagraph = document.createElement('p');
             sizeParagraph.classList.add('total-size-paragraph');
@@ -152,7 +153,7 @@ document.querySelectorAll(".file-input").forEach(input => {
                         const width = img.width;
                         const height = img.height;
                         listItem.textContent = `${fileNameText} (${width}x${height}px, ${fileSizeText})`;
-                        ul.appendChild(listItem);
+                        filesList.appendChild(listItem);
 
                         sizeParagraph.textContent = `Gesamtgröße: ${formatFileSize(totalSize)}`;
                     };
