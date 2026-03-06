@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
                 } else {
                     $msgCrop .= "<div class='alert alert-danger container shadow-sm rounded-3'>
                                     <i class='bi bi-exclamation-triangle-fill me-2'></i>
-                                    Bild konnte nicht zugeschnitten werden. Bitte gib gültige Werte ein, die innerhalb der zulässigen Grenzen liegen.
+                                    Zuschneiden fehlgeschlagen. Die angegebenen Werte liegen außerhalb der Bildgrenzen.
                                 </div>";
                 }
 
@@ -211,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
     } else {
         $msgwebpConvert .= "<div class='alert alert-danger container shadow-sm rounded-3'>
                                 <i class='bi bi-exclamation-triangle-fill me-2'></i>
-                                Bitte wähle mindestens ein Bild aus.
+                                Es wurde kein Bild ausgewählt.
                             </div>";
     }
 }
@@ -349,7 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </div>
                         <small class="text-muted mt-1 d-block">
                             <i class="bi bi-info-circle me-1"></i>
-                            Du kannst die Handles im Vorschaubild ziehen oder Pixelwerte direkt eingeben.
+                            Zuschneidebereiche per Pixeleingabe festlegen oder direkt im Vorschaubild verschieben.
                         </small>
                     </div>
 
@@ -396,7 +396,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold">
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold" disabled>
                         <i class="bi bi-crop me-2" aria-hidden="true"></i>Zuschneiden
                     </button>
                 </div>
@@ -480,7 +480,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold">
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold" disabled>
                         <i class="bi bi-arrows-collapse-vertical me-2" aria-hidden="true"></i>Skalieren
                     </button>
                 </div>
@@ -539,7 +539,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </small>
                     </div>
 
-                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold">
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold" disabled>
                         <i class="bi bi-file-earmark-image me-2" aria-hidden="true"></i>In WebP konvertieren
                     </button>
                 </div>
@@ -553,6 +553,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
         <section id="content4" class="content-section">
             <div class="container">
             <h2 class="display-6 fw-semibold mb-4">Hintergrund entfernen</h2>
+                <!-- Image Preview -->
+                <div class="mb-3">
+                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
+                        <p class="fw-semibold text-secondary small text-uppercase mb-2">
+                            <i class="bi bi-image me-1"></i>Vorschau
+                        </p>
+                        <img id="bg-preview-img" class="image-preview" style="display:none; max-width:100%; border-radius:0.375rem;" alt="Vorschau">
+                        <span id="bg-file-name" class="image-name text-muted">Keine Datei ausgewählt.</span>
+                    </div>
+                </div>
+
                 <div class="form-card card shadow-sm p-4">
 
                     <!-- Info Badge -->
@@ -561,12 +572,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         KI läuft direkt im Browser &mdash; kein Upload, kein Server, kein API-Key.
                         Modell: <code>briaai/RMBG-1.4</code>
                     </p>
-
-                    <!-- Image Preview -->
-                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container mb-3">
-                        <img id="bg-preview-img" class="image-preview" style="display:none; max-width:100%; border-radius:0.375rem;" alt="Vorschau">
-                        <span id="bg-file-name" class="image-name text-muted small">Keine Datei ausgewählt.</span>
-                    </div>
 
                     <!-- File Input -->
                     <div class="mb-4">
@@ -662,7 +667,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                                 <i class="bi bi-crop fs-3 text-primary flex-shrink-0"></i>
                                 <div>
                                     <h3 class="fs-6 fw-semibold mb-1">Zuschneiden</h3>
-                                    <p class="text-muted small mb-0">Schneide Bilder pixelgenau zu, per Zahleneingabe oder durch Ziehen der Handles direkt im Vorschaubild.</p>
+                                    <p class="text-muted small mb-0">Pixelgenaues Zuschneiden per Zahleneingabe oder durch Ziehen der Ränder im Vorschaubild.</p>
                                 </div>
                             </div>
                         </div>
@@ -671,7 +676,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                                 <i class="bi bi-arrows-collapse-vertical fs-3 text-primary flex-shrink-0"></i>
                                 <div>
                                     <h3 class="fs-6 fw-semibold mb-1">Skalieren</h3>
-                                    <p class="text-muted small mb-0">Erstelle bis zu vier skalierte Versionen eines Bildes in einem Schritt, ideal für responsive Bildsets.</p>
+                                    <p class="text-muted small mb-0">Bis zu vier skalierte Versionen in einem Schritt, ideal für responsive Bildsets.</p>
                                 </div>
                             </div>
                         </div>
@@ -680,7 +685,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                                 <i class="bi bi-file-earmark-image fs-3 text-primary flex-shrink-0"></i>
                                 <div>
                                     <h3 class="fs-6 fw-semibold mb-1">WebP-Konvertierung</h3>
-                                    <p class="text-muted small mb-0">Konvertiere mehrere Bilder gleichzeitig ins WebP-Format und lade sie als ZIP-Archiv herunter.</p>
+                                    <p class="text-muted small mb-0">Mehrere Bilder gleichzeitig ins WebP-Format konvertieren, gebündelt als ZIP-Archiv.</p>
                                 </div>
                             </div>
                         </div>
@@ -712,7 +717,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         <i class="bi bi-shield-check fs-3 text-success flex-shrink-0"></i>
                         <div>
                             <p class="mb-2">Hochgeladene Bilder werden ausschließlich zur Verarbeitung verwendet und <strong>automatisch nach einer Stunde</strong> vom Server gelöscht.</p>
-                            <p class="mb-2">Die <strong>Hintergrundentfernung</strong> findet vollständig in deinem Browser statt. Dein Bild verlässt dabei deinen Computer nicht.</p>
+                            <p class="mb-2">Die <strong>Hintergrundentfernung</strong> findet vollständig im Browser statt. Das Bild verlässt dabei den lokalen Rechner nicht.</p>
                             <p class="mb-0 text-muted small">Es werden keine personenbezogenen Daten gespeichert oder weitergegeben.</p>
                         </div>
                     </div>

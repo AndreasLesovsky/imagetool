@@ -107,12 +107,16 @@ body {
    ============================================ */
 .form-card {
     border-radius: 0.75rem !important;
-    border: 1px solid rgba(var(--bs-border-color-rgb, 0 0 0), 0.12) !important;
+    border: none !important;
     transition: box-shadow 0.25s ease;
 }
 
 .form-card:hover {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .form-card {
+    border: 1px solid var(--bs-border-color) !important;
 }
 
 .form-label {
@@ -335,9 +339,6 @@ footer a {
 /* ============================================
    DARK MODE REFINEMENTS
    ============================================ */
-[data-bs-theme="dark"] .form-card {
-    border-color: rgba(255, 255, 255, 0.1) !important;
-}
 
 [data-bs-theme="dark"] .form-card:hover {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
