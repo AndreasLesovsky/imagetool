@@ -45,6 +45,29 @@ body {
 }
 
 /* ============================================
+   HEADER — FLEX ORDER (< 410px)
+   ============================================ */
+@media (max-width: 409px) {
+    .header-brand {
+        order: 1;
+    }
+
+    .header-theme-toggler {
+        order: 2;
+    }
+
+    .header-nav {
+        order: 3;
+        flex-basis: 100%;
+    }
+
+    .header-nav .nav-tools {
+        display: flex !important;
+        width: 100%;
+    }
+}
+
+/* ============================================
    NAV BUTTONS + BTN-GROUP
    ============================================ */
 .nav-tools {

@@ -396,12 +396,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
     </div>
 
     <header class="header-glass shadow-sm py-3">
-        <div class="container d-flex justify-content-between align-items-center gap-1 flex-wrap">
-            <h1 class="brand-gradient fs-2 fw-bold lh-1 text-nowrap mb-0">
+        <div class="container d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <h1 class="brand-gradient fs-2 fw-bold lh-1 text-nowrap mb-0 header-brand">
                 <i class="bi bi-images me-1"></i>ImageTool
             </h1>
 
-            <nav aria-label="Werkzeug-Navigation">
+            <nav aria-label="Werkzeug-Navigation" class="header-nav">
                 <div class="btn-group nav-tools" role="group">
                     <button type="button"
                         class="btn btn-sm btn-outline-primary fw-semibold btn-primary-active"
@@ -443,7 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
             </nav>
 
             <button type="button" id="theme-toggler"
-                class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center"
+                class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center header-theme-toggler"
                 aria-label="Dunkler Modus" title="Dunkler Modus"
                 style="width:38px; height:38px; padding:0;">
                 <i class="bi bi-sun-fill theme-icon sun-icon" aria-hidden="true"></i>
