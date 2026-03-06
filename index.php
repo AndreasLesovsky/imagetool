@@ -18,11 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
         $cropRight = intval($_POST['right']);
         $cropBottom = intval($_POST['bottom']);
 
-        if (in_array($uploadedImage['type'], $whitelist)) {
-            $tmpName = $uploadedImage['tmp_name'];
-            $originalName = basename($uploadedImage['name']);
+        $tmpName = $uploadedImage['tmp_name'];
+        $realMime = mime_content_type($tmpName);
+        if (in_array($realMime, $whitelist)) {
+            $originalName = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', basename($uploadedImage['name']));
             $extension = pathinfo($originalName, PATHINFO_EXTENSION);
-            $uniqueId = uniqid();
+            $uniqueId = bin2hex(random_bytes(8));
             $dir = "./bilder/$uniqueId";
             if (!is_dir($dir)) {
                 mkdir($dir, 0755, true);
@@ -32,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
             move_uploaded_file($tmpName, $originalPath);
 
             $image = null;
-            switch ($uploadedImage['type']) {
+            switch ($realMime) {
                 case 'image/jpeg':
                     $image = imagecreatefromjpeg($originalPath);
                     break;
@@ -99,16 +100,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['scaleImage'])) {
     if (isset($_FILES['scaleImage'])) {
         $uploadedImage = $_FILES['scaleImage'];
-        $uniqueId = uniqid();
+        $tmpName = $uploadedImage['tmp_name'];
+        $realMime = mime_content_type($tmpName);
+        if (!in_array($realMime, $whitelist)) {
+            $msgScale = "<div class='alert alert-danger container shadow-sm rounded-3'>
+                            <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                            Ungültiges Dateiformat. Erlaubt sind nur JPEG, PNG, WebP, GIF, BMP und AVIF Dateien.
+                        </div>";
+        } else {
+        $uniqueId = bin2hex(random_bytes(8));
         $editType = 'scale';
-        $originalName = basename($uploadedImage['name']);
+        $originalName = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', basename($uploadedImage['name']));
         $dir = "./bilder/$uniqueId/{$originalName}_scaled_sizes";
 
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
-        $tmpName = $uploadedImage['tmp_name'];
         $originalPath = "$dir/$originalName";
         move_uploaded_file($tmpName, $originalPath);
 
@@ -132,13 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['scaleImage'])) {
                             <i class='bi bi-download me-1'></i>Bilder herunterladen
                         </a>
                     </div>";
+        } // end mime check
     }
 }
 
 // Bild Konvertierung
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
     if (count($_FILES['webpConvert']['name']) > 0) {
-        $uniqueId = uniqid();
+        $uniqueId = bin2hex(random_bytes(8));
         $outputFormat = ($_POST['output_format'] ?? 'webp') === 'jpeg' ? 'jpeg' : 'webp';
         $quality = max(50, min(100, intval($_POST['quality'] ?? 80)));
         $editType = $outputFormat === 'jpeg' ? 'jpeg' : 'webp';
@@ -155,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
             $fileType = mime_content_type($tempName);
 
             if (in_array($fileType, $whitelist)) {
-                $filename = pathinfo($originalName, PATHINFO_FILENAME);
+                $filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
                 $outputPath = $dir . $filename . '.' . $ext;
 
                 $image = null;
@@ -207,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
             $msgwebpConvert .= "<div class='alert alert-success shadow-sm rounded-3'>
                                     <i class='bi bi-check-circle-fill me-2'></i>
                                     Bild erfolgreich zu {$formatLabel} konvertiert (Qualität: {$quality}%).<br>
-                                    <a href='$outputPath' download class='btn btn-primary btn-submit fw-semibold mt-2'>
+                                    <a href='" . htmlspecialchars($outputPath, ENT_QUOTES, 'UTF-8') . "' download class='btn btn-primary btn-submit fw-semibold mt-2'>
                                         <i class='bi bi-download me-1'></i>Bild herunterladen
                                     </a>
                                 </div>";
@@ -240,7 +249,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
                             Ungültiges Dateiformat. Erlaubt sind JPEG, PNG, WebP, GIF, BMP und AVIF.
                         </div>";
     } else {
-        $position  = $_POST['wm_position'] ?? 'bottom-right';
+        $allowedPositions = ['top-left','top-center','top-right','center-left','center-center','center-right','bottom-left','bottom-center','bottom-right'];
+        $position  = in_array($_POST['wm_position'] ?? '', $allowedPositions) ? $_POST['wm_position'] : 'bottom-right';
         $opacity   = max(0, min(100, intval($_POST['wm_opacity'] ?? 80)));
         $margin    = max(0, intval($_POST['wm_margin'] ?? 20));
         $wmScale   = max(5, min(100, intval($_POST['wm_scale'] ?? 25)));
@@ -266,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
                                 Wasserzeichen-Bild konnte nicht geladen werden.
                             </div>";
         } else {
-            $uniqueId  = uniqid();
+            $uniqueId  = bin2hex(random_bytes(8));
             $outDir    = "./bilder/$uniqueId/watermarked/";
             mkdir($outDir, 0755, true);
 
@@ -817,7 +827,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
                             role="status" aria-label="KI verarbeitet das Bild">
                         </div>
                         <p class="fw-semibold mb-0">KI verarbeitet das Bild…</p>
-                        <small class="text-muted">Kann je nach Bildgröße einige Sekunden dauern.</small>
+                        <small class="text-muted">Dies kann je nach Bildgröße einige Sekunden dauern.</small>
                     </div>
 
                     <!-- Action Button -->
