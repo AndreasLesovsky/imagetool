@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
     </div>
 
     <header class="header-glass shadow-sm py-3">
-        <div class="container d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <div class="container d-flex justify-content-between align-items-center gap-1 flex-wrap">
             <h1 class="brand-gradient fs-2 fw-bold lh-1 text-nowrap mb-0">
                 <i class="bi bi-images me-1"></i>ImageTool
             </h1>
@@ -274,6 +274,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         <i class="bi bi-scissors" aria-hidden="true"></i>
                         <span class="nav-label">Hintergrund</span>
                     </button>
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary fw-semibold"
+                        data-target="content5">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        <span class="nav-label">Über</span>
+                    </button>
                 </div>
             </nav>
 
@@ -287,19 +293,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
         </div>
     </header>
 
-    <main class="my-5">
+    <main class="my-3 my-md-5">
 
         <!-- ============================================================
              SECTION 1: ZUSCHNEIDEN
              ============================================================ -->
         <section id="content1" class="content-section active">
-            <h2 class="display-6 fw-semibold container mb-4">Zuschneiden</h2>
+            <div class="container">
+            <h2 class="display-6 fw-semibold mb-4">Zuschneiden</h2>
             <?php echo $msgCrop; ?>
 
             <form method="post" enctype="multipart/form-data" class="server-form">
 
                 <!-- Preview / Canvas -->
-                <div class="container mb-3">
+                <div class="mb-3">
                     <div class="p-3 rounded-3 border bg-body-secondary">
                         <p class="fw-semibold text-secondary small text-uppercase mb-2 tracking-wide">
                             <i class="bi bi-image me-1"></i>Vorschau
@@ -320,13 +327,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                 </div>
 
                 <!-- Alerts -->
-                <div class="alert alert-danger container shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                <div class="alert alert-danger shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
                 </div>
 
                 <!-- Form Fields -->
-                <div class="container form-card card shadow-sm p-4">
+                <div class="form-card card shadow-sm p-4">
                     <div class="mb-4">
                         <label for="cropImageInput" class="form-label">
                             <i class="bi bi-upload me-1"></i>Bild zum Zuschneiden
@@ -394,18 +401,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     </button>
                 </div>
             </form>
+            </div>
         </section>
 
         <!-- ============================================================
              SECTION 2: SKALIEREN
              ============================================================ -->
         <section id="content2" class="content-section">
-            <h2 class="display-6 fw-semibold container mb-4">Skalieren</h2>
+            <div class="container">
+            <h2 class="display-6 fw-semibold mb-4">Skalieren</h2>
             <?php echo $msgScale; ?>
 
             <form method="post" enctype="multipart/form-data" class="server-form">
 
-                <div class="container mb-3">
+                <div class="mb-3">
                     <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
                         <p class="fw-semibold text-secondary small text-uppercase mb-2">
                             <i class="bi bi-image me-1"></i>Vorschau
@@ -416,12 +425,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     </div>
                 </div>
 
-                <div class="alert alert-danger container shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                <div class="alert alert-danger shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
                 </div>
 
-                <div class="container form-card card shadow-sm p-4">
+                <div class="form-card card shadow-sm p-4">
                     <div class="mb-4">
                         <label for="scaleImage" class="form-label">
                             <i class="bi bi-upload me-1"></i>Bild zum Skalieren
@@ -476,18 +485,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     </button>
                 </div>
             </form>
+            </div>
         </section>
 
         <!-- ============================================================
              SECTION 3: WEBP KONVERTIERUNG
              ============================================================ -->
         <section id="content3" class="content-section">
-            <h2 class="display-6 fw-semibold container mb-4">WebP Konvertierung</h2>
+            <div class="container">
+            <h2 class="display-6 fw-semibold mb-4">WebP Konvertierung</h2>
             <?php echo $msgwebpConvert; ?>
 
             <form method="POST" enctype="multipart/form-data" class="server-form">
 
-                <div class="container mb-3">
+                <div class="mb-3">
                     <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
                         <p class="fw-semibold text-secondary small text-uppercase mb-2">
                             <i class="bi bi-images me-1"></i>Vorschau
@@ -498,16 +509,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     </div>
                 </div>
 
-                <div class="alert alert-danger container shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                <div class="alert alert-danger shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
                 </div>
-                <div class="alert alert-warning container shadow-sm visually-hidden alert-danger-max-file-uploads rounded-3">
+                <div class="alert alert-warning shadow-sm visually-hidden alert-danger-max-file-uploads rounded-3">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     Bitte maximal 20 Dateien auswählen.
                 </div>
 
-                <div class="container form-card card shadow-sm p-4">
+                <div class="form-card card shadow-sm p-4">
                     <div class="mb-4">
                         <label for="webpConvert" class="form-label">
                             <i class="bi bi-upload me-1"></i>Bild(er) konvertieren
@@ -533,15 +544,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     </button>
                 </div>
             </form>
+            </div>
         </section>
 
         <!-- ============================================================
              SECTION 4: HINTERGRUND ENTFERNEN (client-side AI)
              ============================================================ -->
         <section id="content4" class="content-section">
-            <h2 class="display-6 fw-semibold container mb-4">Hintergrund entfernen</h2>
-
             <div class="container">
+            <h2 class="display-6 fw-semibold mb-4">Hintergrund entfernen</h2>
                 <div class="form-card card shadow-sm p-4">
 
                     <!-- Info Badge -->
@@ -632,6 +643,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </div>
                     </div>
 
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             ÜBER / ABOUT
+             ========================================== -->
+        <section id="content5" class="content-section">
+            <div class="container py-4">
+                <div class="form-card card shadow-sm p-4 mb-4">
+                    <h2 class="fs-4 fw-bold mb-1">Was ist ImageTool?</h2>
+                    <p class="text-muted mb-4">Ein schlankes Werkzeug zur Bildbearbeitung direkt im Browser. Ohne Account, ohne Abo, ohne Tracking.</p>
+
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="d-flex gap-3">
+                                <i class="bi bi-crop fs-3 text-primary flex-shrink-0"></i>
+                                <div>
+                                    <h3 class="fs-6 fw-semibold mb-1">Zuschneiden</h3>
+                                    <p class="text-muted small mb-0">Schneide Bilder pixelgenau zu, per Zahleneingabe oder durch Ziehen der Handles direkt im Vorschaubild.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-3">
+                                <i class="bi bi-arrows-collapse-vertical fs-3 text-primary flex-shrink-0"></i>
+                                <div>
+                                    <h3 class="fs-6 fw-semibold mb-1">Skalieren</h3>
+                                    <p class="text-muted small mb-0">Erstelle bis zu vier skalierte Versionen eines Bildes in einem Schritt, ideal für responsive Bildsets.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-3">
+                                <i class="bi bi-file-earmark-image fs-3 text-primary flex-shrink-0"></i>
+                                <div>
+                                    <h3 class="fs-6 fw-semibold mb-1">WebP-Konvertierung</h3>
+                                    <p class="text-muted small mb-0">Konvertiere mehrere Bilder gleichzeitig ins WebP-Format und lade sie als ZIP-Archiv herunter.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-3">
+                                <i class="bi bi-scissors fs-3 text-primary flex-shrink-0"></i>
+                                <div>
+                                    <h3 class="fs-6 fw-semibold mb-1">Hintergrund entfernen</h3>
+                                    <p class="text-muted small mb-0">KI-gestützte Hintergrundentfernung vollständig im Browser. Kein Upload auf externe Server, kein API-Key nötig. Das Modell wird einmalig geladen und danach im Browser gecacht.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card card shadow-sm p-4 mb-4">
+                    <h2 class="fs-4 fw-bold mb-3">Unterstützte Formate</h2>
+                    <p class="text-muted mb-2">Folgende Bildformate werden als Eingabe akzeptiert:</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <?php foreach (['JPEG', 'PNG', 'WebP', 'GIF', 'BMP', 'AVIF'] as $fmt): ?>
+                            <span class="badge text-bg-secondary fs-6 fw-normal"><?= $fmt ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="form-card card shadow-sm p-4">
+                    <h2 class="fs-4 fw-bold mb-3">Datenschutz & Datenspeicherung</h2>
+                    <div class="d-flex gap-3 align-items-start">
+                        <i class="bi bi-shield-check fs-3 text-success flex-shrink-0"></i>
+                        <div>
+                            <p class="mb-2">Hochgeladene Bilder werden ausschließlich zur Verarbeitung verwendet und <strong>automatisch nach einer Stunde</strong> vom Server gelöscht.</p>
+                            <p class="mb-2">Die <strong>Hintergrundentfernung</strong> findet vollständig in deinem Browser statt. Dein Bild verlässt dabei deinen Computer nicht.</p>
+                            <p class="mb-0 text-muted small">Es werden keine personenbezogenen Daten gespeichert oder weitergegeben.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

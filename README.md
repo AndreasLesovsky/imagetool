@@ -1,7 +1,7 @@
 # ImageTool
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-ImageTool ist eine Webanwendung mit **PHP/GD**, die **Bilder-Upload**, **Zuschneiden**, **Skalierung in mehrere Zielgrößen** und **Konvertierung ins WebP-Format** bietet. Bearbeitete Dateien werden für eine Stunde auf dem Server gespeichert und durch einen **Cronjob** automatisch gelöscht. Mehrere Bilder können als **ZIP-Datei** gebündelt heruntergeladen werden. Die Anwendung verfügt über eine **responsive UI** mit Upload-Vorschau, Dark/Light Mode und grundlegender Barrierefreiheit.
+ImageTool ist eine Webanwendung für clientseitige und serverseitige Bildbearbeitung direkt im Browser. Sie bietet **Zuschneiden**, **Skalierung**, **WebP-Konvertierung** und **KI-gestützte Hintergrundentfernung** — ohne externe APIs oder Accountpflicht.
 
 ---
 
@@ -17,53 +17,64 @@ ImageTool ist eine Webanwendung mit **PHP/GD**, die **Bilder-Upload**, **Zuschne
 
 ## Technologien
 
-* PHP 8 mit GD-Bibliothek  
-* HTML5 / CSS3 / SCSS  
-* Bootstrap 5  
-* JavaScript (ES6)  
+* PHP 8 mit GD-Bibliothek
+* HTML5 / CSS3 / SCSS
+* Bootstrap 5.3 (custom compiled)
+* JavaScript (ES6, Vanilla)
+* [Transformers.js](https://github.com/huggingface/transformers.js) — `@huggingface/transformers@3` via CDN
+* KI-Modell: [briaai/RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4) (Apache 2.0)
 
 ---
 
 ## Features
 
-### Bildbearbeitung
+### Bildbearbeitung (serverseitig, PHP/GD)
 
-* Upload mit Vorschau (inkl. Dateiname und Abmessungen)  
-* Zuschneiden an allen vier Seiten  
-* Skalierung in mehrere Zielgrößen  
-* Konvertierung ins WebP-Format  
+* **Zuschneiden** — interaktive Canvas-Vorschau mit ziehbaren Handles, Pixeleingabe
+* **Skalieren** — bis zu 4 Zielgrößen gleichzeitig
+* **WebP-Konvertierung** — Mehrfach-Upload, ZIP-Download
+* Unterstützte Formate: JPEG, PNG, WebP, GIF, BMP, AVIF
+
+### Hintergrundentfernung (clientseitig, KI)
+
+* Vollständig im Browser — kein Server, kein API-Key
+* Modell: `briaai/RMBG-1.4` (~168 MB, nach erstem Download gecacht)
+* Ergebnis als PNG mit transparentem Hintergrund downloadbar
+* Vorher/Nachher-Anzeige
 
 ### Speicherung & Export
 
-* Temporäre Speicherung (1h), automatische Löschung per Cronjob  
-* Mehrere Bilder gebündelt als ZIP-Download  
+* Serverseitig temporäre Speicherung (1h), automatische Löschung per Cronjob
+* Mehrere Bilder gebündelt als ZIP-Download
 
 ### UI & UX
 
-* Responsive UI mit Bootstrap 5  
-* Dark/Light Mode (persistiert via localStorage)  
-* Semantisches HTML, hohe Kontraste, ARIA-Labels  
+* Glassmorphism-Header, animierte Gradient-Buttons
+* Dark/Light Mode (persistiert via localStorage)
+* Responsive Layout mit Bootstrap 5
+* Upload-Vorschau mit Dateiname, Abmessungen und Dateigröße
+* Semantisches HTML, ARIA-Labels
 
 ---
 
-## Installation
+## Installation & Setup
 
 1. Repository klonen:
    ```bash
    git clone https://github.com/AndreasLesovsky/imagetool.git
    ```
 
-2. PHP-Abhängigkeiten installieren:
-   ```bash
-   composer install
-   ```
-
-3. Node.js-Abhängigkeiten installieren:
+2. Node.js-Abhängigkeiten installieren und SCSS kompilieren:
    ```bash
    npm install
+   npm run sass-build
    ```
 
-4. Die **GD-Bibliothek** muss in der php.ini auf dem Webserver aktiviert sein.
+3. Die **GD-Bibliothek** muss in der `php.ini` aktiviert sein (`extension=gd`).
+
+4. Webserver auf das Projektverzeichnis zeigen lassen (z.B. XAMPP, Apache).
+
+> Kein Composer nötig — das Projekt hat keine PHP-Abhängigkeiten.
 
 ---
 
@@ -75,5 +86,5 @@ Live-Demo: [https://imagetool.andreas-web.dev](https://imagetool.andreas-web.dev
 
 ## Lizenz
 
-Dieses Projekt steht unter der **MIT Lizenz**.  
+Dieses Projekt steht unter der **MIT Lizenz**.
 Siehe [LICENSE.md](LICENSE.md) für Details.
