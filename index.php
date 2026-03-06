@@ -3,7 +3,7 @@ require("includes/config.inc.php");
 require("includes/common.inc.php");
 require("includes/pictures.inc.php"); // enthält Funktion scaleImage
 
-$whitelist = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+$whitelist = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/avif'];
 $msgCrop = "";
 $msgScale = "";
 $msgwebpConvert = "";
@@ -47,6 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
                 case 'image/bmp':
                     $image = imagecreatefrombmp($originalPath);
                     break;
+                case 'image/avif':
+                    $image = function_exists('imagecreatefromavif') ? imagecreatefromavif($originalPath) : null;
+                    break;
             }
 
             $info = getimagesize($originalPath);
@@ -64,26 +67,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
                     imagepng($croppedImage, $croppedPath);
                     imagedestroy($croppedImage);
 
-                    $msgCrop .= "<div class='alert alert-success container shadow'>
-                                    <h3 class='fs-4'>Zugeschnittenes Bild:</h3>
-                                    <img src='$croppedPath' alt='Zugeschnittenes Bild' class='img-fluid'><br>
-                                    <p class='my-2'>Bild erfolgreich zugeschnitten!</p>
-                                    <a href='$croppedPath' download class='btn btn-primary fw-semibold'>
-                                        <i class='bi bi-download'></i>
-                                        Bild herunterladen
-                                    </a>
+                    $msgCrop .= "<div class='alert alert-success container shadow-sm rounded-3'>
+                                    <h3 class='fs-5 fw-semibold mb-2'>Zugeschnittenes Bild:</h3>
+                                    <img src='$croppedPath' alt='Zugeschnittenes Bild' class='img-fluid rounded-2 mb-3' style='max-height:400px; max-width:600px;'>
+                                    <div>
+                                        <a href='$croppedPath' download class='btn btn-primary btn-submit fw-semibold'>
+                                            <i class='bi bi-download me-1'></i>Bild herunterladen
+                                        </a>
+                                    </div>
                                 </div>";
                 } else {
-                    $msgCrop .= "<div class='alert alert-danger container shadow'>
-                                    Bild konnte nicht zugeschnitten werden. Bitte geben Sie gültige Werte ein, die innerhalb der zulässigen Grenzen sind.
+                    $msgCrop .= "<div class='alert alert-danger container shadow-sm rounded-3'>
+                                    <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                                    Bild konnte nicht zugeschnitten werden. Bitte gib gültige Werte ein, die innerhalb der zulässigen Grenzen liegen.
                                 </div>";
                 }
 
                 imagedestroy($image);
             }
         } else {
-            $msgCrop = "<div class='alert alert-danger container shadow'>
-                            Ungültiges Dateiformat. Erlaubt sind nur JPEG, PNG, WebP, GIF und BMP Dateien.
+            $msgCrop = "<div class='alert alert-danger container shadow-sm rounded-3'>
+                            <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                            Ungültiges Dateiformat. Erlaubt sind nur JPEG, PNG, WebP, GIF, BMP und AVIF Dateien.
                         </div>";
         }
     }
@@ -115,15 +120,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['scaleImage'])) {
 
         foreach ($sizes as $size) {
             if ($size > 0) {
-                scaleImage($originalPath, $size); // Funktion wird inkludiert
+                scaleImage($originalPath, $size);
             }
         }
 
-        $msgScale .= "<div class='alert alert-success container shadow'>
+        $msgScale .= "<div class='alert alert-success container shadow-sm rounded-3'>
+                        <i class='bi bi-check-circle-fill me-2'></i>
                         Bild wurde erfolgreich skaliert!<br>
-                        <a href='download.php?unique_id=" . urlencode($uniqueId) . "&original_name=" . urlencode($originalName) . "&edit_type=" . urlencode($editType) . "' class='btn btn-primary fw-semibold mt-2'>
-                            <i class='bi bi-download'></i>
-                            Bilder herunterladen
+                        <a href='download.php?unique_id=" . urlencode($uniqueId) . "&original_name=" . urlencode($originalName) . "&edit_type=" . urlencode($editType) . "' class='btn btn-primary btn-submit fw-semibold mt-2'>
+                            <i class='bi bi-download me-1'></i>Bilder herunterladen
                         </a>
                     </div>";
     }
@@ -154,7 +159,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                 } elseif ($fileType == 'image/png') {
                     $image = imagecreatefrompng($tempName);
 
-                    // Überprüfen, ob das PNG eine reduzierte Farbtiefe hat (8-Bit oder weniger)
                     if (imagecolorstotal($image) <= 256) {
                         $width = imagesx($image);
                         $height = imagesy($image);
@@ -169,47 +173,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     $image = imagecreatefromwebp($tempName);
                 } elseif ($fileType == 'image/bmp') {
                     $image = imagecreatefrombmp($tempName);
+                } elseif ($fileType == 'image/avif') {
+                    $image = function_exists('imagecreatefromavif') ? imagecreatefromavif($tempName) : null;
                 }
 
                 if ($image) {
-                    imagewebp($image, $outputPath, 80); // Qualität 80
+                    imagewebp($image, $outputPath, 80);
                     imagedestroy($image);
                 }
             } else {
-                $msgwebpConvert .= "<div class='alert alert-danger container shadow'>
-                                        Ungültiges Dateiformat. Erlaubt sind nur JPEG, PNG, WebP, GIF und BMP Dateien.
+                $msgwebpConvert .= "<div class='alert alert-danger container shadow-sm rounded-3'>
+                                        <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                                        Ungültiges Dateiformat. Erlaubt sind nur JPEG, PNG, WebP, GIF, BMP und AVIF Dateien.
                                     </div>";
             }
         }
 
         if (count($_FILES['webpConvert']['name']) === 1) {
-            $msgwebpConvert .= "<div class='alert alert-success container shadow'>
+            $msgwebpConvert .= "<div class='alert alert-success container shadow-sm rounded-3'>
+                                    <i class='bi bi-check-circle-fill me-2'></i>
                                     Bild wurde erfolgreich konvertiert!<br>
-                                    <a href='$outputPath' download class='btn btn-primary fw-semibold mt-2'>
-                                        <i class='bi bi-download'></i>
-                                        Bild herunterladen
+                                    <a href='$outputPath' download class='btn btn-primary btn-submit fw-semibold mt-2'>
+                                        <i class='bi bi-download me-1'></i>Bild herunterladen
                                     </a>
                                 </div>";
         }
 
         if (count($_FILES['webpConvert']['name']) > 1) {
-            $msgwebpConvert .= "<div class='alert alert-success container shadow'>
+            $msgwebpConvert .= "<div class='alert alert-success container shadow-sm rounded-3'>
+                                    <i class='bi bi-check-circle-fill me-2'></i>
                                     Bilder wurden erfolgreich konvertiert!<br>
-                                    <a href='download.php?unique_id=" . urlencode($uniqueId) . "&original_name=" . urlencode($originalName) . "&edit_type=" . urlencode($editType) . "' class='btn btn-primary fw-semibold mt-2'>
-                                        <i class='bi bi-download'></i>
-                                        Bilder herunterladen
+                                    <a href='download.php?unique_id=" . urlencode($uniqueId) . "&original_name=" . urlencode($originalName) . "&edit_type=" . urlencode($editType) . "' class='btn btn-primary btn-submit fw-semibold mt-2'>
+                                        <i class='bi bi-download me-1'></i>Bilder herunterladen
                                     </a>
                                 </div>";
         }
     } else {
-        $msgwebpConvert .= "<div class='alert alert-danger container shadow'>
-                                Bitte wählen Sie mindestens ein Bild aus.
+        $msgwebpConvert .= "<div class='alert alert-danger container shadow-sm rounded-3'>
+                                <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                                Bitte wähle mindestens ein Bild aus.
                             </div>";
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 
 <head>
     <meta charset="UTF-8">
@@ -223,179 +231,430 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
 </head>
 
 <body>
-    <header class="bg-body-secondary shadow py-4">
-        <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-center flex-wrap gap-2">
-            <h1 class="fs-2 fw-bold lh-1 text-dark text-nowrap rounded-1 bg-secondary px-3 py-2 mb-0 col-12 col-lg-auto">
-                <i class="bi bi-images"></i>
-                ImageTool
+
+    <!-- Loading Spinner Overlay -->
+    <div id="spinner-overlay" class="spinner-overlay d-none" aria-live="polite" aria-label="Wird verarbeitet">
+        <div class="spinner-box">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Wird verarbeitet...</span>
+            </div>
+            <p class="mt-3 fw-semibold fs-5">Wird verarbeitet…</p>
+        </div>
+    </div>
+
+    <header class="header-glass shadow-sm py-3">
+        <div class="container d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <h1 class="brand-gradient fs-2 fw-bold lh-1 text-nowrap mb-0">
+                <i class="bi bi-images me-1"></i>ImageTool
             </h1>
 
-            <nav class="col-12 col-lg-auto">
-                <div class="d-flex flex-column flex-lg-row gap-1" role="group" aria-label="Content Switcher">
-                    <button type="button" id="theme-toggler" class="btn btn-sm btn-outline-secondary text-body fw-semibold d-inline-flex align-items-center flex-nowrap order-lg-last">
-                        <i class="bi bi-sun-fill theme-icon sun-icon me-2"></i>
-                        <i class="bi bi-moon-fill theme-icon moon-icon visually-hidden me-2"></i>
-                        <span id="theme-text">Dunkler Modus</span>
+            <nav aria-label="Werkzeug-Navigation">
+                <div class="btn-group nav-tools" role="group">
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary fw-semibold btn-primary-active"
+                        data-target="content1">
+                        <i class="bi bi-crop" aria-hidden="true"></i>
+                        <span class="nav-label">Zuschneiden</span>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold d-inline-flex align-items-center flex-nowrap btn-primary-active" data-target="content1">
-                        <i class="bi bi-crop me-2"></i>
-                        Zuschneiden
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary fw-semibold"
+                        data-target="content2">
+                        <i class="bi bi-arrows-collapse-vertical" aria-hidden="true"></i>
+                        <span class="nav-label">Skalieren</span>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold d-inline-flex align-items-center flex-nowrap" data-target="content2">
-                        <i class="bi bi-arrows-collapse-vertical me-2"></i>
-                        Skalieren
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary fw-semibold"
+                        data-target="content3">
+                        <i class="bi bi-file-earmark-image" aria-hidden="true"></i>
+                        <span class="nav-label">WebP</span>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold d-inline-flex align-items-center flex-nowrap text-nowrap" data-target="content3">
-                        <i class="bi bi-file-earmark-image me-2"></i>
-                        WebP Konvertierung
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary fw-semibold"
+                        data-target="content4">
+                        <i class="bi bi-scissors" aria-hidden="true"></i>
+                        <span class="nav-label">Hintergrund</span>
                     </button>
                 </div>
             </nav>
+
+            <button type="button" id="theme-toggler"
+                class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center"
+                aria-label="Dunkler Modus" title="Dunkler Modus"
+                style="width:38px; height:38px; padding:0;">
+                <i class="bi bi-sun-fill theme-icon sun-icon" aria-hidden="true"></i>
+                <i class="bi bi-moon-fill theme-icon moon-icon visually-hidden" aria-hidden="true"></i>
+            </button>
         </div>
     </header>
 
     <main class="my-5">
+
+        <!-- ============================================================
+             SECTION 1: ZUSCHNEIDEN
+             ============================================================ -->
         <section id="content1" class="content-section active">
-            <h2 class="display-6 fw-semibold container">Zuschneiden</h2>
+            <h2 class="display-6 fw-semibold container mb-4">Zuschneiden</h2>
             <?php echo $msgCrop; ?>
-            <form method="post" enctype="multipart/form-data">
-                <div class="text-primary-emphasis bg-primary-subtle border border-primary-subtle container shadow p-3 mb-3 image-preview-container">
-                    <h3 class="fs-4">Hochgeladen:</h3>
-                    <img class="image-preview img-fluid" src="" alt="Image Preview" style="display:none;">
-                    <div class="image-name">Keine Datei ausgewählt.</div>
+
+            <form method="post" enctype="multipart/form-data" class="server-form">
+
+                <!-- Preview / Canvas -->
+                <div class="container mb-3">
+                    <div class="p-3 rounded-3 border bg-body-secondary">
+                        <p class="fw-semibold text-secondary small text-uppercase mb-2 tracking-wide">
+                            <i class="bi bi-image me-1"></i>Vorschau
+                        </p>
+
+                        <!-- Canvas + Drag Handles (hidden until image loaded) -->
+                        <div class="crop-handle-wrapper" style="display:none;">
+                            <canvas id="crop-canvas-full" aria-label="Crop-Vorschau"></canvas>
+                            <div class="crop-handle crop-handle-left"   data-side="left"   title="Links ziehen"></div>
+                            <div class="crop-handle crop-handle-top"    data-side="top"    title="Oben ziehen"></div>
+                            <div class="crop-handle crop-handle-right"  data-side="right"  title="Rechts ziehen"></div>
+                            <div class="crop-handle crop-handle-bottom" data-side="bottom" title="Unten ziehen"></div>
+                        </div>
+
+                        <div class="image-name text-muted">Keine Datei ausgewählt.</div>
+                        <p id="crop-dimensions" class="text-muted small mb-0 mt-1"></p>
+                    </div>
                 </div>
-                <div class="alert alert-danger container alert-danger-max-file-size visually-hidden">
-                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 50MB.
+
+                <!-- Alerts -->
+                <div class="alert alert-danger container shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
                 </div>
-                <div class="alert alert-warning container alert-danger-max-file-uploads visually-hidden">
-                    Bitte maximal 20 Dateien auswählen.
-                </div>
-                <div class="container border bg-body-tertiary shadow p-3">
-                    <div class="mb-3">
-                        <label for="cropImage" class="form-label">Bild zum Zuschneiden (maximal 50 MB):</label>
+
+                <!-- Form Fields -->
+                <div class="container form-card card shadow-sm p-4">
+                    <div class="mb-4">
+                        <label for="cropImageInput" class="form-label">
+                            <i class="bi bi-upload me-1"></i>Bild zum Zuschneiden
+                            <span class="text-muted fw-normal">(max. 256 MB)</span>
+                        </label>
                         <div class="input-group">
-                            <input type="file" class="form-control file-input" name="cropImage" accept="image/jpeg, image/png, image/webp, image/gif, image/bmp" required>
-                            <button type="button" title="Auswahl löschen" class="btn btn-danger clear-button"><i class="bi bi-trash3"></i></button>
+                            <input type="file" class="form-control" id="cropImageInput" name="cropImage"
+                                accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif" required>
+                            <button type="button" id="crop-clear-btn" title="Auswahl löschen"
+                                class="btn btn-outline-danger" disabled>
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted mt-1 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Du kannst die Handles im Vorschaubild ziehen oder Pixelwerte direkt eingeben.
+                        </small>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <label for="crop-left" class="form-label">
+                                <i class="bi bi-arrow-bar-right me-1"></i>Von links
+                            </label>
+                            <div class="input-group">
+                                <input type="number" id="crop-left" name="left" min="0"
+                                    class="form-control" placeholder="0" aria-label="Von links wegschneiden">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label for="crop-top" class="form-label">
+                                <i class="bi bi-arrow-bar-down me-1"></i>Von oben
+                            </label>
+                            <div class="input-group">
+                                <input type="number" id="crop-top" name="top" min="0"
+                                    class="form-control" placeholder="0" aria-label="Von oben wegschneiden">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label for="crop-right" class="form-label">
+                                <i class="bi bi-arrow-bar-left me-1"></i>Von rechts
+                            </label>
+                            <div class="input-group">
+                                <input type="number" id="crop-right" name="right" min="0"
+                                    class="form-control" placeholder="0" aria-label="Von rechts wegschneiden">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label for="crop-bottom" class="form-label">
+                                <i class="bi bi-arrow-bar-up me-1"></i>Von unten
+                            </label>
+                            <div class="input-group">
+                                <input type="number" id="crop-bottom" name="bottom" min="0"
+                                    class="form-control" placeholder="0" aria-label="Von unten wegschneiden">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-arrow-bar-right me-2"></i>Von links wegschneiden</label>
-                            <input type="number" name="left" class="form-control" placeholder="px" aria-label="Von links wegschneiden">
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-arrow-bar-down me-2"></i>Von oben wegschneiden</label>
-                            <input type="number" name="top" class="form-control" placeholder="px" aria-label="Von oben wegschneiden">
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-arrow-bar-left me-2"></i>Von rechts wegschneiden</label>
-                            <input type="number" name="right" class="form-control" placeholder="px" aria-label="Von rechts wegschneiden">
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-arrow-bar-up me-2"></i>Von unten wegschneiden</label>
-                            <input type="number" name="bottom" class="form-control" placeholder="px" aria-label="Von unten wegschneiden">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-lg btn-primary fw-semibold mt-2">
-                        <i class="bi bi-crop me-1"></i> Zuschneiden
+
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold">
+                        <i class="bi bi-crop me-2" aria-hidden="true"></i>Zuschneiden
                     </button>
                 </div>
             </form>
         </section>
 
+        <!-- ============================================================
+             SECTION 2: SKALIEREN
+             ============================================================ -->
         <section id="content2" class="content-section">
-            <h2 class="display-6 fw-semibold container">Skalieren</h2>
+            <h2 class="display-6 fw-semibold container mb-4">Skalieren</h2>
             <?php echo $msgScale; ?>
-            <form method="post" enctype="multipart/form-data">
-                <div class="text-primary-emphasis bg-primary-subtle border border-primary-subtle container shadow p-3 mb-3 image-preview-container">
-                    <h3 class="fs-4">Hochgeladen:</h3>
-                    <img class="image-preview img-fluid" src="" alt="Image Preview" style="display:none;">
-                    <div class="image-name">Keine Datei ausgewählt.</div>
+
+            <form method="post" enctype="multipart/form-data" class="server-form">
+
+                <div class="container mb-3">
+                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
+                        <p class="fw-semibold text-secondary small text-uppercase mb-2">
+                            <i class="bi bi-image me-1"></i>Vorschau
+                        </p>
+                        <img class="image-preview img-fluid rounded-2" src="" alt="Bildvorschau"
+                            style="display:none; max-height:400px;">
+                        <div class="image-name text-muted">Keine Datei ausgewählt.</div>
+                    </div>
                 </div>
-                <div class="alert alert-danger container alert-danger-max-file-size visually-hidden">
-                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 50MB.
+
+                <div class="alert alert-danger container shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
                 </div>
-                <div class="alert alert-warning container alert-danger-max-file-uploads visually-hidden">
-                    Bitte maximal 20 Dateien auswählen.
-                </div>
-                <div class="container border bg-body-tertiary shadow p-3">
-                    <div class="mb-3">
-                        <label for="scaleImage" class="form-label">Bild zum Skalieren (maximal 50 MB):</label>
+
+                <div class="container form-card card shadow-sm p-4">
+                    <div class="mb-4">
+                        <label for="scaleImage" class="form-label">
+                            <i class="bi bi-upload me-1"></i>Bild zum Skalieren
+                            <span class="text-muted fw-normal">(max. 256 MB)</span>
+                        </label>
                         <div class="input-group">
-                            <input type="file" class="form-control file-input" name="scaleImage" accept="image/jpeg, image/png, image/webp, image/gif, image/bmp" required>
-                            <button type="button" title="Auswahl löschen" class="btn btn-danger clear-button"><i class="bi bi-trash3"></i></button>
+                            <input type="file" class="form-control file-input" id="scaleImage" name="scaleImage"
+                                accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif" required>
+                            <button type="button" title="Auswahl löschen" class="btn btn-outline-danger clear-button" disabled>
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-1-circle me-2"></i>Größe 1</label>
-                            <input type="number" name="size_1" class="form-control" placeholder="px">
+
+                    <p class="form-label mb-2">
+                        <i class="bi bi-rulers me-1"></i>Zielbreiten
+                        <span class="text-muted fw-normal small">(Seitenverhältnis wird beibehalten)</span>
+                    </p>
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-1-circle"></i></span>
+                                <input type="number" name="size_1" class="form-control" placeholder="z.B. 1920" min="1">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
                         </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-2-circle me-2"></i>Größe 2</label>
-                            <input type="number" name="size_2" class="form-control" placeholder="px">
+                        <div class="col-6 col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-2-circle"></i></span>
+                                <input type="number" name="size_2" class="form-control" placeholder="z.B. 1280" min="1">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
                         </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-3-circle me-2"></i>Größe 3</label>
-                            <input type="number" name="size_3" class="form-control" placeholder="px">
+                        <div class="col-6 col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-3-circle"></i></span>
+                                <input type="number" name="size_3" class="form-control" placeholder="z.B. 800" min="1">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
                         </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <label class="form-label mb-0"><i class="bi bi-4-circle me-2"></i>Größe 4</label>
-                            <input type="number" name="size_4" class="form-control" placeholder="px">
+                        <div class="col-6 col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-4-circle"></i></span>
+                                <input type="number" name="size_4" class="form-control" placeholder="z.B. 400" min="1">
+                                <span class="input-group-text text-muted">px</span>
+                            </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-lg btn-primary fw-semibold mt-2">
-                        <i class="bi bi-arrows-collapse-vertical me-1"></i>
-                        Skalieren
+
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold">
+                        <i class="bi bi-arrows-collapse-vertical me-2" aria-hidden="true"></i>Skalieren
                     </button>
                 </div>
             </form>
         </section>
 
+        <!-- ============================================================
+             SECTION 3: WEBP KONVERTIERUNG
+             ============================================================ -->
         <section id="content3" class="content-section">
-            <h2 class="display-6 fw-semibold container">WebP Konvertierung</h2>
+            <h2 class="display-6 fw-semibold container mb-4">WebP Konvertierung</h2>
             <?php echo $msgwebpConvert; ?>
-            <form method="POST" enctype="multipart/form-data">
-                <div class="text-primary-emphasis bg-primary-subtle border border-primary-subtle container shadow p-3 mb-3 image-preview-container">
-                    <h3 class="fs-4">Hochgeladen:</h3>
-                    <img class="image-preview img-fluid" src="" alt="Image Preview" style="display:none;">
-                    <div class="image-name">Keine Datei(en) ausgewählt.</div>
+
+            <form method="POST" enctype="multipart/form-data" class="server-form">
+
+                <div class="container mb-3">
+                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
+                        <p class="fw-semibold text-secondary small text-uppercase mb-2">
+                            <i class="bi bi-images me-1"></i>Vorschau
+                        </p>
+                        <img class="image-preview img-fluid rounded-2" src="" alt="Bildvorschau"
+                            style="display:none; max-height:400px;">
+                        <div class="image-name text-muted">Keine Datei(en) ausgewählt.</div>
+                    </div>
                 </div>
-                <div class="alert alert-danger container alert-danger-max-file-size visually-hidden">
-                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 50MB.
+
+                <div class="alert alert-danger container shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
                 </div>
-                <div class="alert alert-warning container alert-danger-max-file-uploads visually-hidden">
+                <div class="alert alert-warning container shadow-sm visually-hidden alert-danger-max-file-uploads rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     Bitte maximal 20 Dateien auswählen.
                 </div>
-                <div class="container border bg-body-tertiary shadow p-3">
-                    <div class="mb-3">
-                        <label for="webpConvert" class="form-label">Bild(er) zum Konvertieren (maximal 20 Dateien, maximal 50 MB):</label>
+
+                <div class="container form-card card shadow-sm p-4">
+                    <div class="mb-4">
+                        <label for="webpConvert" class="form-label">
+                            <i class="bi bi-upload me-1"></i>Bild(er) konvertieren
+                            <span class="text-muted fw-normal">(max. 20 Dateien, max. 256 MB)</span>
+                        </label>
                         <div class="input-group">
-                            <input type="file" class="form-control file-input" name="webpConvert[]" accept="image/jpeg, image/png, image/webp, image/gif, image/bmp" required multiple>
-                            <button type="button" title="Auswahl löschen" class="btn btn-danger clear-button"><i class="bi bi-trash3"></i></button>
+                            <input type="file" class="form-control file-input" id="webpConvert"
+                                name="webpConvert[]"
+                                accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif"
+                                required multiple>
+                            <button type="button" title="Auswahl löschen" class="btn btn-outline-danger clear-button" disabled>
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                            </button>
                         </div>
+                        <small class="text-muted mt-1 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Ausgabequalität: 80 % WebP. Mehrere Bilder werden als ZIP-Datei gebündelt.
+                        </small>
                     </div>
-                    <button type="submit" class="btn btn-lg btn-primary fw-semibold mt-2">
-                        <i class="bi bi-file-earmark-image me-1"></i>
-                        In WebP konvertieren
+
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold">
+                        <i class="bi bi-file-earmark-image me-2" aria-hidden="true"></i>In WebP konvertieren
                     </button>
                 </div>
             </form>
         </section>
+
+        <!-- ============================================================
+             SECTION 4: HINTERGRUND ENTFERNEN (client-side AI)
+             ============================================================ -->
+        <section id="content4" class="content-section">
+            <h2 class="display-6 fw-semibold container mb-4">Hintergrund entfernen</h2>
+
+            <div class="container">
+                <div class="form-card card shadow-sm p-4">
+
+                    <!-- Info Badge -->
+                    <p class="text-muted small mb-4">
+                        <i class="bi bi-cpu me-1 text-primary"></i>
+                        KI läuft direkt im Browser &mdash; kein Upload, kein Server, kein API-Key.
+                        Modell: <code>briaai/RMBG-1.4</code>
+                    </p>
+
+                    <!-- Image Preview -->
+                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container mb-3">
+                        <img id="bg-preview-img" class="image-preview" style="display:none; max-width:100%; border-radius:0.375rem;" alt="Vorschau">
+                        <span id="bg-file-name" class="image-name text-muted small">Keine Datei ausgewählt.</span>
+                    </div>
+
+                    <!-- File Input -->
+                    <div class="mb-4">
+                        <label for="bg-file-input" class="form-label">
+                            <i class="bi bi-upload me-1"></i>Bild auswählen
+                        </label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="bg-file-input"
+                                accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif">
+                            <button type="button" id="bg-clear-btn" title="Auswahl löschen"
+                                class="btn btn-outline-danger" disabled>
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Model Download Progress (first time only) -->
+                    <div id="bg-progress-container" class="d-none mb-4">
+                        <p class="fw-semibold mb-1">
+                            <i class="bi bi-cloud-download me-1"></i>
+                            Modell wird heruntergeladen…
+                            (<span id="bg-progress-percent">0</span> %)
+                        </p>
+                        <div class="progress" style="height: 10px;">
+                            <div id="bg-progress-bar"
+                                class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                                role="progressbar" style="width: 0%"
+                                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Einmalig ~168 MB — wird danach im Browser zwischengespeichert.
+                        </small>
+                    </div>
+
+                    <!-- Processing Spinner -->
+                    <div id="bg-processing" class="d-none text-center py-4 mb-4">
+                        <div class="spinner-border text-primary mb-2" style="width:2.5rem;height:2.5rem;"
+                            role="status" aria-label="KI verarbeitet das Bild">
+                        </div>
+                        <p class="fw-semibold mb-0">KI verarbeitet das Bild…</p>
+                        <small class="text-muted">Kann je nach Bildgröße einige Sekunden dauern.</small>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button id="bg-remove-btn" disabled
+                        class="btn btn-lg btn-primary btn-submit fw-semibold mb-4">
+                        <i class="bi bi-scissors me-2" aria-hidden="true"></i>Hintergrund entfernen
+                    </button>
+
+                    <!-- Result: Before / After -->
+                    <div id="bg-result" class="d-none">
+                        <hr class="my-3">
+                        <h3 class="fs-5 fw-semibold mb-3">Ergebnis</h3>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <p class="text-muted small fw-semibold text-uppercase mb-2">Original</p>
+                                <img id="bg-original-img" class="img-fluid rounded-2 shadow-sm w-100"
+                                    alt="Originalbild" style="max-height:400px; object-fit:contain;">
+                            </div>
+                            <div class="col-md-6">
+                                <p class="text-muted small fw-semibold text-uppercase mb-2">
+                                    Ohne Hintergrund
+                                </p>
+                                <canvas id="bg-result-canvas" class="rounded-2 shadow-sm"
+                                    style="max-height:400px; max-width:100%; object-fit:contain;"
+                                    aria-label="Ergebnis: Bild ohne Hintergrund"></canvas>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button id="bg-download-btn" class="btn btn-primary btn-submit fw-semibold">
+                                <i class="bi bi-download me-2" aria-hidden="true"></i>PNG herunterladen
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
     </main>
 
-    <footer class="text-white py-3">
-        <div class="container d-flex justify-content-between align-items-center">
-            <p class="mb-0 fw-bold"><i class="bi bi-c-circle text-secondary me-1"></i>2025 <a href="https://andreas-web.dev/" class="text-white">Andreas Lesovsky</a></p>
+    <footer class="py-3">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <p class="mb-0 fw-semibold">
+                <i class="bi bi-c-circle me-1"></i><?php echo date('Y'); ?>
+                <a href="https://andreas-web.dev/" class="text-body text-decoration-none ms-1">Andreas Lesovsky</a>
+            </p>
             <ul class="social-links fs-4 d-flex gap-3 mb-0">
                 <li>
-                    <a href="https://www.linkedin.com/in/andreas-lesovsky-98a464306/" target="_blank" aria-label="LinkedIn Profil">
-                        <i class="bi bi-linkedin text-primary" aria-hidden="true"></i>
+                    <a href="https://www.linkedin.com/in/andreas-lesovsky-98a464306/" target="_blank"
+                        rel="noopener" aria-label="LinkedIn Profil">
+                        <i class="bi bi-linkedin" aria-hidden="true"></i>
                     </a>
                 </li>
                 <li>
-                    <a href="https://github.com/AndreasLesovsky/web-image-optimizer" target="_blank" aria-label="GitHub Profil">
-                        <i class="bi bi-github text-primary" aria-hidden="true"></i>
+                    <a href="https://github.com/AndreasLesovsky/imagetool" target="_blank"
+                        rel="noopener" aria-label="GitHub Profil">
+                        <i class="bi bi-github" aria-hidden="true"></i>
                     </a>
                 </li>
             </ul>
@@ -404,6 +663,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
 
     <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/script.js"></script>
+    <script type="module" src="js/bg-removal.js"></script>
 </body>
 
 </html>

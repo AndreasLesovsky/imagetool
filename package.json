@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "sass-build": "sass scss/custom-bootstrap.scss css/custom-bootstrap.css --no-source-map --style=compressed",
+    "sass-watch": "sass scss/custom-bootstrap.scss css/custom-bootstrap.css --no-source-map --style=compressed --watch"
+  },
   "dependencies": {
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3"
