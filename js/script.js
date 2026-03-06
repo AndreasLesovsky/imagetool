@@ -64,6 +64,44 @@ document.querySelectorAll('form.server-form').forEach(form => {
 });
 
 // =============================================
+// QUALITY SLIDER
+// =============================================
+const qualitySlider = document.getElementById('quality-slider');
+const qualityValue  = document.getElementById('quality-value');
+if (qualitySlider && qualityValue) {
+    qualitySlider.addEventListener('input', () => {
+        qualityValue.textContent = qualitySlider.value;
+    });
+}
+
+// =============================================
+// WATERMARK SLIDERS
+// =============================================
+const wmOpacitySlider = document.getElementById('wm-opacity-slider');
+const wmOpacityValue  = document.getElementById('wm-opacity-value');
+if (wmOpacitySlider && wmOpacityValue) {
+    wmOpacitySlider.addEventListener('input', () => {
+        wmOpacityValue.textContent = wmOpacitySlider.value;
+    });
+}
+
+const wmScaleSlider = document.getElementById('wm-scale-slider');
+const wmScaleValue  = document.getElementById('wm-scale-value');
+if (wmScaleSlider && wmScaleValue) {
+    wmScaleSlider.addEventListener('input', () => {
+        wmScaleValue.textContent = wmScaleSlider.value;
+    });
+}
+
+// Watermark position grid: toggle active class on click
+document.querySelectorAll('.wm-pos-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+        document.querySelectorAll('.wm-pos-cell').forEach(c => c.classList.remove('active'));
+        cell.classList.add('active');
+    });
+});
+
+// =============================================
 // SHARED HELPER
 // =============================================
 const formatSize = (bytes) => {
@@ -75,10 +113,7 @@ const formatSize = (bytes) => {
 // =============================================
 // FILE PREVIEW — scale + webp sections
 // =============================================
-document.querySelectorAll('.file-input').forEach(input => {
-    input.addEventListener('change', function (e) {
-        const files = e.target.files;
-        const form = this.closest('form');
+function handleFiles(files, form) {
         const previewContainer = form.querySelector('.image-preview-container');
         const preview = previewContainer.querySelector('.image-preview');
         const fileNameContainer = previewContainer.querySelector('.image-name');
@@ -90,15 +125,17 @@ document.querySelectorAll('.file-input').forEach(input => {
 
         fileNameContainer.textContent = '';
         fileNameContainer.innerHTML = '';
+        const dragHint = previewContainer.querySelector('.drag-hint');
+        if (dragHint) dragHint.style.display = files.length > 0 ? 'none' : '';
 
         let totalSize = 0;
         let valid = true;
 
         if (files.length > 20) {
-            errorCount.classList.remove('visually-hidden');
+            if (errorCount) errorCount.classList.remove('visually-hidden');
             valid = false;
         } else {
-            errorCount.classList.add('visually-hidden');
+            if (errorCount) errorCount.classList.add('visually-hidden');
         }
 
         if (files.length > 1) {
@@ -144,14 +181,52 @@ document.querySelectorAll('.file-input').forEach(input => {
         }
 
         if (totalSize > 256 * 1024 * 1024) {
-            errorSize.classList.remove('visually-hidden');
+            if (errorSize) errorSize.classList.remove('visually-hidden');
             valid = false;
         } else {
-            errorSize.classList.add('visually-hidden');
+            if (errorSize) errorSize.classList.add('visually-hidden');
         }
 
         if (files.length > 20 || totalSize > 256 * 1024 * 1024) valid = false;
-        submitBtn.disabled = !valid;
+        if (submitBtn) submitBtn.disabled = !valid;
+}
+
+document.querySelectorAll('.file-input').forEach(input => {
+    if (input.id === 'cropImageInput') return;
+    if (input.id === 'wm_main') return;
+    if (input.id === 'bg-file-input') return;
+    input.addEventListener('change', function (e) {
+        handleFiles(e.target.files, this.closest('form'));
+    });
+});
+
+// =============================================
+// DRAG & DROP — alle Preview-Container
+// =============================================
+document.querySelectorAll('.image-preview-container').forEach(zone => {
+    const form = zone.closest('form');
+    if (!form) return;
+    const fileInput = form.querySelector('.file-input') || form.querySelector('input[type="file"]');
+    if (!fileInput) return;
+
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragleave', () => {
+        zone.classList.remove('drag-over');
+    });
+
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (!files.length) return;
+        const dt = new DataTransfer();
+        Array.from(files).forEach(f => dt.items.add(f));
+        fileInput.files = dt.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
 });
 
@@ -170,6 +245,8 @@ document.querySelectorAll('.clear-button').forEach(btn => {
             if (preview) preview.style.display = 'none';
             const nameEl = previewContainer.querySelector('.image-name');
             if (nameEl) nameEl.textContent = 'Keine Datei ausgewählt.';
+            const dragHint = previewContainer.querySelector('.drag-hint');
+            if (dragHint) dragHint.style.display = '';
         }
 
         form.querySelectorAll('.alert-danger-max-file-size, .alert-danger-max-file-uploads').forEach(el => {
@@ -191,6 +268,7 @@ const cropDimText       = document.getElementById('crop-dimensions');
 const cropClearBtn      = document.getElementById('crop-clear-btn');
 
 let cropImg = null;
+let cropRatio = null; // null = free, { w, h } = locked ratio
 
 function getCropValues() {
     return {
@@ -199,6 +277,61 @@ function getCropValues() {
         right:  Math.max(0, parseInt(document.getElementById('crop-right').value)  || 0),
         bottom: Math.max(0, parseInt(document.getElementById('crop-bottom').value) || 0),
     };
+}
+
+function setCropValues({ left, top, right, bottom }) {
+    document.getElementById('crop-left').value   = left;
+    document.getElementById('crop-top').value    = top;
+    document.getElementById('crop-right').value  = right;
+    document.getElementById('crop-bottom').value = bottom;
+}
+
+// Apply ratio constraint: keep top-left fixed, adjust right+bottom
+function applyRatioConstraint(left, top, right, bottom, anchor) {
+    if (!cropRatio || !cropImg) return { left, top, right, bottom };
+    const { w: rW, h: rH } = cropRatio;
+    const imgW = cropImg.naturalWidth;
+    const imgH = cropImg.naturalHeight;
+
+    // Current crop dimensions
+    let cropW = imgW - left - right;
+    let cropH = imgH - top  - bottom;
+
+    // Anchor determines which sides are "pinned":
+    // 'nw' = top+left fixed → adjust right+bottom
+    // 'ne' = top+right fixed → adjust left+bottom
+    // 'sw' = bottom+left fixed → adjust right+top
+    // 'se' = bottom+right fixed → adjust left+top
+    // edge handles: pin the opposite edge, adjust the two non-dragged sides symmetrically
+
+    if (anchor === 'nw' || anchor === 'ne' || anchor === 'sw' || anchor === 'se') {
+        // Fit height to width by ratio
+        cropH = Math.round(cropW * rH / rW);
+        if (anchor === 'nw') { right  = Math.max(0, imgW - left  - cropW); bottom = Math.max(0, imgH - top    - cropH); }
+        if (anchor === 'ne') { left   = Math.max(0, imgW - right - cropW); bottom = Math.max(0, imgH - top    - cropH); }
+        if (anchor === 'sw') { right  = Math.max(0, imgW - left  - cropW); top    = Math.max(0, imgH - bottom - cropH); }
+        if (anchor === 'se') { left   = Math.max(0, imgW - right - cropW); top    = Math.max(0, imgH - bottom - cropH); }
+    } else if (anchor === 'left' || anchor === 'right') {
+        // Width changed → recalculate height, keep vertical center
+        const centerY = top + cropH / 2;
+        cropH = Math.round(cropW * rH / rW);
+        top    = Math.max(0, Math.round(centerY - cropH / 2));
+        bottom = Math.max(0, imgH - top - cropH);
+    } else if (anchor === 'top' || anchor === 'bottom') {
+        // Height changed → recalculate width, keep horizontal center
+        const centerX = left + cropW / 2;
+        cropW = Math.round(cropH * rW / rH);
+        left  = Math.max(0, Math.round(centerX - cropW / 2));
+        right = Math.max(0, imgW - left - cropW);
+    }
+
+    // Clamp
+    left   = Math.max(0, Math.min(left,   imgW - 1));
+    top    = Math.max(0, Math.min(top,    imgH - 1));
+    right  = Math.max(0, Math.min(right,  imgW - left  - 1));
+    bottom = Math.max(0, Math.min(bottom, imgH - top   - 1));
+
+    return { left, top, right, bottom };
 }
 
 function drawCropCanvas() {
@@ -212,7 +345,6 @@ function drawCropCanvas() {
     cropCtx.clearRect(0, 0, W, H);
     cropCtx.drawImage(cropImg, 0, 0, W, H);
 
-    // Darken cropped-away areas
     cropCtx.fillStyle = 'rgba(0,0,0,0.55)';
     const lx = left * sx;
     const ty = top * sy;
@@ -224,7 +356,6 @@ function drawCropCanvas() {
     if (ty > 0)       cropCtx.fillRect(lx, 0, rx - lx, ty);
     if (H - by > 0)   cropCtx.fillRect(lx, by, rx - lx, H - by);
 
-    // White border around keep area
     cropCtx.strokeStyle = 'rgba(255,255,255,0.9)';
     cropCtx.lineWidth = 2;
     cropCtx.strokeRect(lx + 1, ty + 1, rx - lx - 2, by - ty - 2);
@@ -241,10 +372,8 @@ function updateHandlePositions() {
     const wrapperRect = cropHandleWrapper.getBoundingClientRect();
     if (canvasRect.width === 0) return;
 
-    // Canvas offset within wrapper (due to margin:auto centering)
     const offsetX = canvasRect.left - wrapperRect.left;
     const offsetY = canvasRect.top  - wrapperRect.top;
-
     const cssPerImgX = canvasRect.width  / cropImg.naturalWidth;
     const cssPerImgY = canvasRect.height / cropImg.naturalHeight;
 
@@ -252,21 +381,26 @@ function updateHandlePositions() {
     const rx = offsetX + (cropImg.naturalWidth  - right)  * cssPerImgX;
     const ty = offsetY + top   * cssPerImgY;
     const by = offsetY + (cropImg.naturalHeight - bottom) * cssPerImgY;
-
     const midX = (lx + rx) / 2;
     const midY = (ty + by) / 2;
 
     cropHandleWrapper.querySelectorAll('.crop-handle').forEach(h => {
-        const side = h.dataset.side;
-        if (side === 'left')   { h.style.left = lx + 'px'; h.style.top = midY + 'px'; }
-        if (side === 'right')  { h.style.left = rx + 'px'; h.style.top = midY + 'px'; }
-        if (side === 'top')    { h.style.top  = ty + 'px'; h.style.left = midX + 'px'; }
-        if (side === 'bottom') { h.style.top  = by + 'px'; h.style.left = midX + 'px'; }
+        const side   = h.dataset.side;
+        const corner = h.dataset.corner;
+        if (side === 'left')   { h.style.left = lx + 'px';   h.style.top  = midY + 'px'; }
+        if (side === 'right')  { h.style.left = rx + 'px';   h.style.top  = midY + 'px'; }
+        if (side === 'top')    { h.style.top  = ty + 'px';   h.style.left = midX + 'px'; }
+        if (side === 'bottom') { h.style.top  = by + 'px';   h.style.left = midX + 'px'; }
+        if (corner === 'nw')   { h.style.left = lx + 'px';   h.style.top  = ty   + 'px'; }
+        if (corner === 'ne')   { h.style.left = rx + 'px';   h.style.top  = ty   + 'px'; }
+        if (corner === 'sw')   { h.style.left = lx + 'px';   h.style.top  = by   + 'px'; }
+        if (corner === 'se')   { h.style.left = rx + 'px';   h.style.top  = by   + 'px'; }
     });
 }
 
 function initCropHandles() {
-    cropHandleWrapper.querySelectorAll('.crop-handle').forEach(handle => {
+    // ---- Edge handles ----
+    cropHandleWrapper.querySelectorAll('.crop-handle[data-side]').forEach(handle => {
         const side = handle.dataset.side;
         let startClient, startValue;
 
@@ -297,13 +431,14 @@ function initCropHandles() {
             if (side === 'right' || side === 'bottom') delta = -delta;
             let newVal = Math.round(startValue + delta);
 
-            const { left, top, right, bottom } = getCropValues();
-            if (side === 'left')   newVal = Math.max(0, Math.min(newVal, cropImg.naturalWidth  - right  - 1));
-            if (side === 'right')  newVal = Math.max(0, Math.min(newVal, cropImg.naturalWidth  - left   - 1));
-            if (side === 'top')    newVal = Math.max(0, Math.min(newVal, cropImg.naturalHeight - bottom - 1));
-            if (side === 'bottom') newVal = Math.max(0, Math.min(newVal, cropImg.naturalHeight - top    - 1));
+            let { left, top, right, bottom } = getCropValues();
+            if (side === 'left')   { newVal = Math.max(0, Math.min(newVal, cropImg.naturalWidth  - right  - 1)); left   = newVal; }
+            if (side === 'right')  { newVal = Math.max(0, Math.min(newVal, cropImg.naturalWidth  - left   - 1)); right  = newVal; }
+            if (side === 'top')    { newVal = Math.max(0, Math.min(newVal, cropImg.naturalHeight - bottom - 1)); top    = newVal; }
+            if (side === 'bottom') { newVal = Math.max(0, Math.min(newVal, cropImg.naturalHeight - top    - 1)); bottom = newVal; }
 
-            document.getElementById(`crop-${side}`).value = newVal;
+            const clamped = applyRatioConstraint(left, top, right, bottom, side);
+            setCropValues(clamped);
             drawCropCanvas();
             updateHandlePositions();
         };
@@ -319,7 +454,191 @@ function initCropHandles() {
         handle.addEventListener('mousedown', onStart);
         handle.addEventListener('touchstart', onStart, { passive: false });
     });
+
+    // ---- Corner handles ----
+    cropHandleWrapper.querySelectorAll('.crop-handle[data-corner]').forEach(handle => {
+        const corner = handle.dataset.corner; // 'nw' | 'ne' | 'sw' | 'se'
+        let startX, startY, startLeft, startTop, startRight, startBottom;
+
+        const onStart = (e) => {
+            e.preventDefault();
+            const pt = e.touches ? e.touches[0] : e;
+            startX = pt.clientX;
+            startY = pt.clientY;
+            ({ left: startLeft, top: startTop, right: startRight, bottom: startBottom } = getCropValues());
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+            handle.style.opacity = '1';
+        };
+
+        const onMove = (e) => {
+            if (e.cancelable) e.preventDefault();
+            if (!cropImg) return;
+            const pt = e.touches ? e.touches[0] : e;
+            const rect = cropCanvas.getBoundingClientRect();
+            const imgPerCssX = cropImg.naturalWidth  / rect.width;
+            const imgPerCssY = cropImg.naturalHeight / rect.height;
+
+            const dx = (pt.clientX - startX) * imgPerCssX;
+            const dy = (pt.clientY - startY) * imgPerCssY;
+
+            // Each corner moves two sides
+            let left   = startLeft;
+            let top    = startTop;
+            let right  = startRight;
+            let bottom = startBottom;
+
+            if (corner === 'nw') { left  = Math.round(startLeft  + dx); top    = Math.round(startTop    + dy); }
+            if (corner === 'ne') { right = Math.round(startRight - dx); top    = Math.round(startTop    + dy); }
+            if (corner === 'sw') { left  = Math.round(startLeft  + dx); bottom = Math.round(startBottom - dy); }
+            if (corner === 'se') { right = Math.round(startRight - dx); bottom = Math.round(startBottom - dy); }
+
+            // Clamp before ratio
+            left   = Math.max(0, Math.min(left,   cropImg.naturalWidth  - right  - 1));
+            top    = Math.max(0, Math.min(top,     cropImg.naturalHeight - bottom - 1));
+            right  = Math.max(0, Math.min(right,   cropImg.naturalWidth  - left   - 1));
+            bottom = Math.max(0, Math.min(bottom,  cropImg.naturalHeight - top    - 1));
+
+            const clamped = applyRatioConstraint(left, top, right, bottom, corner);
+            setCropValues(clamped);
+            drawCropCanvas();
+            updateHandlePositions();
+        };
+
+        const onEnd = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+            handle.style.opacity = '';
+        };
+
+        handle.addEventListener('mousedown', onStart);
+        handle.addEventListener('touchstart', onStart, { passive: false });
+    });
+
+    // ---- Canvas move drag (drag crop area itself) ----
+    {
+        let moveStartX, moveStartY, moveStartLeft, moveStartTop, moveStartRight, moveStartBottom;
+        let isMoving = false;
+
+        const onMoveStart = (e) => {
+            if (!cropImg) return;
+            // Only start if click is inside the crop area (not on handles)
+            if (e.target !== cropCanvas) return;
+            const pt = e.touches ? e.touches[0] : e;
+            const rect = cropCanvas.getBoundingClientRect();
+            const imgPerCssX = cropImg.naturalWidth  / rect.width;
+            const imgPerCssY = cropImg.naturalHeight / rect.height;
+            const clickX = (pt.clientX - rect.left) * imgPerCssX;
+            const clickY = (pt.clientY - rect.top)  * imgPerCssY;
+
+            const { left, top, right, bottom } = getCropValues();
+            const cropRight  = cropImg.naturalWidth  - right;
+            const cropBottom = cropImg.naturalHeight - bottom;
+
+            // Only start move if click is inside crop area
+            if (clickX < left || clickX > cropRight || clickY < top || clickY > cropBottom) return;
+
+            e.preventDefault();
+            isMoving = true;
+            moveStartX = pt.clientX;
+            moveStartY = pt.clientY;
+            moveStartLeft   = left;
+            moveStartTop    = top;
+            moveStartRight  = right;
+            moveStartBottom = bottom;
+            cropCanvas.style.cursor = 'grabbing';
+
+            document.addEventListener('mousemove', onMoveMove);
+            document.addEventListener('mouseup',   onMoveEnd);
+            document.addEventListener('touchmove', onMoveMove, { passive: false });
+            document.addEventListener('touchend',  onMoveEnd);
+        };
+
+        const onMoveMove = (e) => {
+            if (!isMoving || !cropImg) return;
+            if (e.cancelable) e.preventDefault();
+            const pt = e.touches ? e.touches[0] : e;
+            const rect = cropCanvas.getBoundingClientRect();
+            const imgPerCssX = cropImg.naturalWidth  / rect.width;
+            const imgPerCssY = cropImg.naturalHeight / rect.height;
+
+            const dx = Math.round((pt.clientX - moveStartX) * imgPerCssX);
+            const dy = Math.round((pt.clientY - moveStartY) * imgPerCssY);
+
+            const cropW = cropImg.naturalWidth  - moveStartLeft - moveStartRight;
+            const cropH = cropImg.naturalHeight - moveStartTop  - moveStartBottom;
+
+            let newLeft = moveStartLeft + dx;
+            let newTop  = moveStartTop  + dy;
+
+            // Clamp so crop area stays within image
+            newLeft = Math.max(0, Math.min(newLeft, cropImg.naturalWidth  - cropW));
+            newTop  = Math.max(0, Math.min(newTop,  cropImg.naturalHeight - cropH));
+
+            setCropValues({
+                left:   newLeft,
+                top:    newTop,
+                right:  cropImg.naturalWidth  - newLeft - cropW,
+                bottom: cropImg.naturalHeight - newTop  - cropH,
+            });
+            drawCropCanvas();
+            updateHandlePositions();
+        };
+
+        const onMoveEnd = () => {
+            isMoving = false;
+            cropCanvas.style.cursor = 'crosshair';
+            document.removeEventListener('mousemove', onMoveMove);
+            document.removeEventListener('mouseup',   onMoveEnd);
+            document.removeEventListener('touchmove', onMoveMove);
+            document.removeEventListener('touchend',  onMoveEnd);
+        };
+
+        cropCanvas.addEventListener('mousedown',  onMoveStart);
+        cropCanvas.addEventListener('touchstart', onMoveStart, { passive: false });
+
+        // Cursor hint: grab inside crop area, crosshair outside
+        cropCanvas.addEventListener('mousemove', (e) => {
+            if (!cropImg || isMoving) return;
+            const rect = cropCanvas.getBoundingClientRect();
+            const imgPerCssX = cropImg.naturalWidth  / rect.width;
+            const imgPerCssY = cropImg.naturalHeight / rect.height;
+            const mx = (e.clientX - rect.left) * imgPerCssX;
+            const my = (e.clientY - rect.top)  * imgPerCssY;
+            const { left, top, right, bottom } = getCropValues();
+            const inside = mx >= left && mx <= cropImg.naturalWidth - right
+                        && my >= top  && my <= cropImg.naturalHeight - bottom;
+            cropCanvas.style.cursor = inside ? 'grab' : 'crosshair';
+        });
+    }
 }
+
+// ---- Ratio button logic ----
+document.querySelectorAll('.btn-ratio').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-ratio').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const val = btn.dataset.ratio;
+        if (!val) {
+            cropRatio = null;
+        } else {
+            const [w, h] = val.split(':').map(Number);
+            cropRatio = { w, h };
+            // If image is loaded, immediately apply ratio from current crop state
+            if (cropImg) {
+                const { left, top, right, bottom } = getCropValues();
+                const clamped = applyRatioConstraint(left, top, right, bottom, 'nw');
+                setCropValues(clamped);
+                drawCropCanvas();
+                updateHandlePositions();
+            }
+        }
+    });
+});
 
 if (cropFileInput && cropCanvas && cropHandleWrapper) {
     initCropHandles();
@@ -352,6 +671,9 @@ if (cropFileInput && cropCanvas && cropHandleWrapper) {
 
                 cropHandleWrapper.style.display = 'block';
 
+                const dragHintCrop = document.querySelector('#content1 .drag-hint');
+                if (dragHintCrop) dragHintCrop.style.display = 'none';
+
                 const nameEl = document.querySelector('#content1 .image-name');
                 if (nameEl) nameEl.textContent = `${file.name} (${img.naturalWidth}×${img.naturalHeight}px, ${formatSize(file.size)})`;
 
@@ -363,10 +685,17 @@ if (cropFileInput && cropCanvas && cropHandleWrapper) {
         reader.readAsDataURL(file);
     });
 
-    // Live update on pixel field input
+    // Live update on pixel field input (apply ratio if locked)
     ['crop-left', 'crop-top', 'crop-right', 'crop-bottom'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('input', () => {
+        if (!el) return;
+        el.addEventListener('input', () => {
+            if (cropRatio) {
+                const side = id.replace('crop-', ''); // 'left' | 'top' | 'right' | 'bottom'
+                const { left, top, right, bottom } = getCropValues();
+                const clamped = applyRatioConstraint(left, top, right, bottom, side);
+                setCropValues(clamped);
+            }
             drawCropCanvas();
             updateHandlePositions();
         });
@@ -391,11 +720,204 @@ if (cropFileInput && cropCanvas && cropHandleWrapper) {
             const submitBtn = document.querySelector('#content1 [type="submit"]');
             if (submitBtn) submitBtn.disabled = false;
             cropClearBtn.disabled = true;
+            const dragHintCropClr = document.querySelector('#content1 .drag-hint');
+            if (dragHintCropClr) dragHintCropClr.style.display = '';
+            // Reset ratio selection to "Frei"
+            cropRatio = null;
+            document.querySelectorAll('.btn-ratio').forEach(b => b.classList.remove('active'));
+            const freeBtn = document.querySelector('.btn-ratio[data-ratio=""]');
+            if (freeBtn) freeBtn.classList.add('active');
         });
     }
 
     // Reposition handles on window resize
     window.addEventListener('resize', () => {
         if (cropImg) requestAnimationFrame(() => updateHandlePositions());
+    });
+}
+
+// =============================================
+// WATERMARK LIVE PREVIEW
+// =============================================
+const wmMainInput    = document.getElementById('wm_main');
+const wmLogoInput    = document.getElementById('wm_logo');
+const wmCanvas       = document.getElementById('wm-preview-canvas');
+const wmMainName     = document.getElementById('wm-main-name');
+const wmOpacityEl    = document.getElementById('wm-opacity-slider');
+const wmScaleEl      = document.getElementById('wm-scale-slider');
+const wmMarginEl     = document.getElementById('wm_margin');
+const wmClearBtn     = wmMainInput ? wmMainInput.closest('form').querySelector('.clear-button') : null;
+const wmSubmitBtn    = wmMainInput ? wmMainInput.closest('form').querySelector('[type="submit"]') : null;
+const wmDragHint     = document.querySelector('#wm-main-preview-container .drag-hint');
+
+let wmMainImg = null;
+let wmLogoImg = null;
+
+function drawWmPreview() {
+    if (!wmCanvas || !wmMainImg) return;
+    const mW = wmMainImg.naturalWidth;
+    const mH = wmMainImg.naturalHeight;
+
+    // Scale canvas to fit container (max 800px wide)
+    const maxW = wmCanvas.parentElement.clientWidth - 32 || 800;
+    const scale = Math.min(maxW / mW, 1);
+    wmCanvas.width  = Math.round(mW * scale);
+    wmCanvas.height = Math.round(mH * scale);
+
+    const ctx = wmCanvas.getContext('2d');
+    ctx.clearRect(0, 0, wmCanvas.width, wmCanvas.height);
+    ctx.drawImage(wmMainImg, 0, 0, wmCanvas.width, wmCanvas.height);
+
+    if (!wmLogoImg) return;
+
+    const wmScalePct = parseInt(wmScaleEl?.value ?? 25) / 100;
+    const opacity    = parseInt(wmOpacityEl?.value ?? 80) / 100;
+    const margin     = parseInt(wmMarginEl?.value ?? 20) * scale;
+
+    const logoW = Math.round(wmCanvas.width * wmScalePct);
+    const ratio  = wmLogoImg.naturalHeight / wmLogoImg.naturalWidth;
+    const logoH  = Math.round(logoW * ratio);
+
+    const posVal = document.querySelector('input[name="wm_position"]:checked')?.value ?? 'bottom-right';
+    const [posV, posH] = posVal.split('-');
+
+    let x, y;
+    switch (posH) {
+        case 'left':   x = margin; break;
+        case 'right':  x = wmCanvas.width  - logoW - margin; break;
+        default:       x = (wmCanvas.width  - logoW) / 2;
+    }
+    switch (posV) {
+        case 'top':    y = margin; break;
+        case 'bottom': y = wmCanvas.height - logoH - margin; break;
+        default:       y = (wmCanvas.height - logoH) / 2;
+    }
+
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(wmLogoImg, x, y, logoW, logoH);
+    ctx.globalAlpha = 1;
+}
+
+function loadWmImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = () => callback(img);
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+if (wmMainInput) {
+    wmMainInput.addEventListener('change', function () {
+        const files = this.files;
+        if (!files || files.length === 0) return;
+
+        const form = this.closest('form');
+        const errorCount = form.querySelector('.alert-danger-max-file-uploads');
+        const errorSize  = form.querySelector('.alert-danger-max-file-size');
+
+        // Validate count
+        if (files.length > 20) {
+            if (errorCount) errorCount.classList.remove('visually-hidden');
+            if (wmSubmitBtn) wmSubmitBtn.disabled = true;
+            return;
+        }
+        if (errorCount) errorCount.classList.add('visually-hidden');
+
+        // Validate total size
+        let totalSize = 0;
+        Array.from(files).forEach(f => totalSize += f.size);
+        if (totalSize > 256 * 1024 * 1024) {
+            if (errorSize) errorSize.classList.remove('visually-hidden');
+            if (wmSubmitBtn) wmSubmitBtn.disabled = true;
+            return;
+        }
+        if (errorSize) errorSize.classList.add('visually-hidden');
+
+        if (wmClearBtn) wmClearBtn.disabled = false;
+        if (wmDragHint) wmDragHint.style.display = 'none';
+
+        // Always load first file for canvas preview
+        const firstFile = files[0];
+        loadWmImage(firstFile, img => {
+            wmMainImg = img;
+            if (wmCanvas) wmCanvas.style.display = 'block';
+            if (wmSubmitBtn && wmLogoInput?.files?.length) wmSubmitBtn.disabled = false;
+            drawWmPreview();
+        });
+
+        // Build name display
+        if (wmMainName) {
+            wmMainName.innerHTML = '';
+            if (files.length === 1) {
+                const firstFile = files[0];
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    const img = new Image();
+                    img.onload = () => {
+                        wmMainName.textContent = `${firstFile.name} (${img.naturalWidth}×${img.naturalHeight}px, ${formatSize(firstFile.size)})`;
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(firstFile);
+            } else {
+                const sizePara = document.createElement('p');
+                sizePara.className = 'total-size-paragraph mb-1 fw-semibold';
+                sizePara.textContent = `Gesamtgröße: ${formatSize(totalSize)}`;
+                const ol = document.createElement('ol');
+                wmMainName.appendChild(sizePara);
+                wmMainName.appendChild(ol);
+                Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const li = document.createElement('li');
+                            li.textContent = `${file.name} (${img.naturalWidth}×${img.naturalHeight}px, ${formatSize(file.size)})`;
+                            ol.appendChild(li);
+                        };
+                        img.src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+    });
+}
+
+if (wmLogoInput) {
+    wmLogoInput.addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) { wmLogoImg = null; drawWmPreview(); return; }
+        loadWmImage(file, img => {
+            wmLogoImg = img;
+            if (wmSubmitBtn && wmMainImg) wmSubmitBtn.disabled = false;
+            drawWmPreview();
+        });
+    });
+}
+
+// Redraw on any setting change
+[wmOpacityEl, wmScaleEl, wmMarginEl].forEach(el => {
+    if (el) el.addEventListener('input', drawWmPreview);
+});
+
+document.querySelectorAll('input[name="wm_position"]').forEach(radio => {
+    radio.addEventListener('change', drawWmPreview);
+});
+
+// Clear button
+if (wmClearBtn) {
+    wmClearBtn.addEventListener('click', () => {
+        wmMainImg = null;
+        wmMainInput.value = '';
+        if (wmCanvas) { wmCanvas.style.display = 'none'; wmCanvas.getContext('2d').clearRect(0, 0, wmCanvas.width, wmCanvas.height); }
+        if (wmMainName) { wmMainName.innerHTML = ''; wmMainName.textContent = 'Keine Datei ausgewählt.'; }
+        if (wmDragHint) wmDragHint.style.display = '';
+        if (wmSubmitBtn) wmSubmitBtn.disabled = true;
+        wmClearBtn.disabled = true;
+        const form = wmMainInput.closest('form');
+        form.querySelectorAll('.alert-danger-max-file-size, .alert-danger-max-file-uploads').forEach(el => el.classList.add('visually-hidden'));
     });
 }

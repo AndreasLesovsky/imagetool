@@ -1,7 +1,7 @@
 # ImageTool
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-ImageTool ist eine Webanwendung für clientseitige und serverseitige Bildbearbeitung direkt im Browser. Sie bietet **Zuschneiden**, **Skalierung**, **WebP-Konvertierung** und **KI-gestützte Hintergrundentfernung** — ohne externe APIs oder Accountpflicht.
+ImageTool ist eine Webanwendung für clientseitige und serverseitige Bildbearbeitung direkt im Browser. Sie bietet **Zuschneiden**, **Skalierung**, **Konvertierung**, **Wasserzeichen** und **KI-gestützte Hintergrundentfernung** — ohne externe APIs oder Accountpflicht.
 
 ---
 
@@ -30,15 +30,16 @@ ImageTool ist eine Webanwendung für clientseitige und serverseitige Bildbearbei
 
 ### Bildbearbeitung (serverseitig, PHP/GD)
 
-* **Zuschneiden** — interaktive Canvas-Vorschau mit ziehbaren Handles, Pixeleingabe
+* **Zuschneiden** — interaktive Canvas-Vorschau mit 4 Kanten- und 4 Ecken-Handles, Aspect Ratio Lock (8 Voreinstellungen: 1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3, 2:1), Drag-to-Move des Crop-Bereichs, Pixeleingabe
 * **Skalieren** — bis zu 4 Zielgrößen gleichzeitig
-* **WebP-Konvertierung** — Mehrfach-Upload, ZIP-Download
+* **Konvertieren** — WebP oder JPEG, einstellbare Qualität (50–100 %), Mehrfach-Upload, ZIP-Download
+* **Wasserzeichen** — bis zu 20 Hauptbilder gleichzeitig, Wasserzeichen-Bild, Position (3x3-Grid), Größe, Deckkraft, Randabstand, Live-Vorschau im Browser, ZIP-Download bei Mehrfach-Upload
 * Unterstützte Formate: JPEG, PNG, WebP, GIF, BMP, AVIF
 
 ### Hintergrundentfernung (clientseitig, KI)
 
-* Vollständig im Browser — kein Server, kein API-Key
-* Modell: `briaai/RMBG-1.4` (~168 MB, nach erstem Download gecacht)
+* Läuft vollständig im Browser — das Bild wird nicht an einen Server übertragen
+* Modell: `briaai/RMBG-1.4` (~168 MB, nach erstem Download im Browser gespeichert)
 * Ergebnis als PNG mit transparentem Hintergrund downloadbar
 * Vorher/Nachher-Anzeige
 
@@ -52,6 +53,7 @@ ImageTool ist eine Webanwendung für clientseitige und serverseitige Bildbearbei
 * Glassmorphism-Header, animierte Gradient-Buttons
 * Dark/Light Mode (persistiert via localStorage)
 * Responsive Layout mit Bootstrap 5
+* Drag & Drop in alle Upload-Bereiche
 * Upload-Vorschau mit Dateiname, Abmessungen und Dateigröße
 * Semantisches HTML, ARIA-Labels
 

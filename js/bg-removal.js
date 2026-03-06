@@ -111,16 +111,19 @@ if (!bgFileInput) {
         if (bgClearBtn) bgClearBtn.disabled = false;
         bgResult.classList.add('d-none');
 
+        const previewContainer = bgFileInput.closest('form').querySelector('.image-preview-container');
+        if (previewContainer) { const dh = previewContainer.querySelector('.drag-hint'); if (dh) dh.style.display = 'none'; }
+
         const url = URL.createObjectURL(file);
         const img = new Image();
         img.onload = () => {
-            URL.revokeObjectURL(url);
             if (bgPreviewImg) {
-                bgPreviewImg.src = img.src;
+                bgPreviewImg.src = url;
                 bgPreviewImg.style.display = 'block';
             }
+            bgOriginalImg.src = url;
             if (bgFileName) bgFileName.textContent = `${file.name} (${img.naturalWidth}×${img.naturalHeight}px, ${formatSize(file.size)})`;
-            bgOriginalImg.src = img.src;
+            URL.revokeObjectURL(url);
         };
         img.src = url;
     });
@@ -207,6 +210,8 @@ if (!bgFileInput) {
             const resultCtx = bgResultCanvas.getContext('2d');
             resultCtx.clearRect(0, 0, bgResultCanvas.width, bgResultCanvas.height);
             bgClearBtn.disabled = true;
+            const previewContainerClr = bgFileInput.closest('form').querySelector('.image-preview-container');
+            if (previewContainerClr) { const dh = previewContainerClr.querySelector('.drag-hint'); if (dh) dh.style.display = ''; }
         });
     }
 }

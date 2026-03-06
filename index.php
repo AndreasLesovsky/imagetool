@@ -7,6 +7,7 @@ $whitelist = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
 $msgCrop = "";
 $msgScale = "";
 $msgwebpConvert = "";
+$msgWatermark = "";
 
 // Bild Zuschneiden
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
@@ -134,13 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['scaleImage'])) {
     }
 }
 
-// WebP Konvertierung
+// Bild Konvertierung
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
     if (count($_FILES['webpConvert']['name']) > 0) {
         $uniqueId = uniqid();
-        $editType = 'webp';
+        $outputFormat = ($_POST['output_format'] ?? 'webp') === 'jpeg' ? 'jpeg' : 'webp';
+        $quality = max(50, min(100, intval($_POST['quality'] ?? 80)));
+        $editType = $outputFormat === 'jpeg' ? 'jpeg' : 'webp';
+        $ext = $outputFormat === 'jpeg' ? 'jpg' : 'webp';
 
-        $dir = "./bilder/$uniqueId/webp_images/";
+        $folderName = $outputFormat === 'jpeg' ? 'jpeg_images' : 'webp_images';
+        $dir = "./bilder/$uniqueId/$folderName/";
         if (!file_exists($dir)) {
             mkdir($dir, 0755, true);
         }
@@ -151,14 +156,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
 
             if (in_array($fileType, $whitelist)) {
                 $filename = pathinfo($originalName, PATHINFO_FILENAME);
-                $outputPath = $dir . $filename . '.webp';
+                $outputPath = $dir . $filename . '.' . $ext;
 
                 $image = null;
                 if ($fileType == 'image/jpeg') {
                     $image = imagecreatefromjpeg($tempName);
                 } elseif ($fileType == 'image/png') {
                     $image = imagecreatefrompng($tempName);
-
                     if (imagecolorstotal($image) <= 256) {
                         $width = imagesx($image);
                         $height = imagesy($image);
@@ -178,21 +182,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                 }
 
                 if ($image) {
-                    imagewebp($image, $outputPath, 80);
+                    if ($outputFormat === 'jpeg') {
+                        // JPEG braucht weißen Hintergrund für transparente Bilder
+                        $bg = imagecreatetruecolor(imagesx($image), imagesy($image));
+                        imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
+                        imagecopy($bg, $image, 0, 0, 0, 0, imagesx($image), imagesy($image));
+                        imagejpeg($bg, $outputPath, $quality);
+                        imagedestroy($bg);
+                    } else {
+                        imagewebp($image, $outputPath, $quality);
+                    }
                     imagedestroy($image);
                 }
             } else {
-                $msgwebpConvert .= "<div class='alert alert-danger container shadow-sm rounded-3'>
+                $msgwebpConvert .= "<div class='alert alert-danger shadow-sm rounded-3'>
                                         <i class='bi bi-exclamation-triangle-fill me-2'></i>
                                         Ungültiges Dateiformat. Erlaubt sind nur JPEG, PNG, WebP, GIF, BMP und AVIF Dateien.
                                     </div>";
             }
         }
 
+        $formatLabel = strtoupper($ext);
         if (count($_FILES['webpConvert']['name']) === 1) {
-            $msgwebpConvert .= "<div class='alert alert-success container shadow-sm rounded-3'>
+            $msgwebpConvert .= "<div class='alert alert-success shadow-sm rounded-3'>
                                     <i class='bi bi-check-circle-fill me-2'></i>
-                                    Bild wurde erfolgreich konvertiert!<br>
+                                    Bild erfolgreich zu {$formatLabel} konvertiert (Qualität: {$quality}%).<br>
                                     <a href='$outputPath' download class='btn btn-primary btn-submit fw-semibold mt-2'>
                                         <i class='bi bi-download me-1'></i>Bild herunterladen
                                     </a>
@@ -200,9 +214,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
         }
 
         if (count($_FILES['webpConvert']['name']) > 1) {
-            $msgwebpConvert .= "<div class='alert alert-success container shadow-sm rounded-3'>
+            $msgwebpConvert .= "<div class='alert alert-success shadow-sm rounded-3'>
                                     <i class='bi bi-check-circle-fill me-2'></i>
-                                    Bilder wurden erfolgreich konvertiert!<br>
+                                    Bilder erfolgreich zu {$formatLabel} konvertiert (Qualität: {$quality}%).<br>
                                     <a href='download.php?unique_id=" . urlencode($uniqueId) . "&original_name=" . urlencode($originalName) . "&edit_type=" . urlencode($editType) . "' class='btn btn-primary btn-submit fw-semibold mt-2'>
                                         <i class='bi bi-download me-1'></i>Bilder herunterladen
                                     </a>
@@ -213,6 +227,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                                 <i class='bi bi-exclamation-triangle-fill me-2'></i>
                                 Es wurde kein Bild ausgewählt.
                             </div>";
+    }
+}
+
+// Wasserzeichen
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset($_FILES['wm_logo'])) {
+    $logoFile = $_FILES['wm_logo'];
+
+    if (!in_array(mime_content_type($logoFile['tmp_name']), $whitelist)) {
+        $msgWatermark = "<div class='alert alert-danger shadow-sm rounded-3'>
+                            <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                            Ungültiges Dateiformat. Erlaubt sind JPEG, PNG, WebP, GIF, BMP und AVIF.
+                        </div>";
+    } else {
+        $position  = $_POST['wm_position'] ?? 'bottom-right';
+        $opacity   = max(0, min(100, intval($_POST['wm_opacity'] ?? 80)));
+        $margin    = max(0, intval($_POST['wm_margin'] ?? 20));
+        $wmScale   = max(5, min(100, intval($_POST['wm_scale'] ?? 25)));
+
+        function loadImageFromFile(string $path, string $mime) {
+            switch ($mime) {
+                case 'image/jpeg': return imagecreatefromjpeg($path);
+                case 'image/png':  return imagecreatefrompng($path);
+                case 'image/webp': return imagecreatefromwebp($path);
+                case 'image/gif':  return imagecreatefromgif($path);
+                case 'image/bmp':  return imagecreatefrombmp($path);
+                case 'image/avif': return function_exists('imagecreatefromavif') ? imagecreatefromavif($path) : null;
+                default: return null;
+            }
+        }
+
+        $logoMime  = mime_content_type($logoFile['tmp_name']);
+        $logoSrc   = loadImageFromFile($logoFile['tmp_name'], $logoMime);
+
+        if (!$logoSrc) {
+            $msgWatermark = "<div class='alert alert-danger shadow-sm rounded-3'>
+                                <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                                Wasserzeichen-Bild konnte nicht geladen werden.
+                            </div>";
+        } else {
+            $uniqueId  = uniqid();
+            $outDir    = "./bilder/$uniqueId/watermarked/";
+            mkdir($outDir, 0755, true);
+
+            $logoW_src = imagesx($logoSrc);
+            $logoH_src = imagesy($logoSrc);
+            $logoRatio = $logoW_src > 0 ? $logoH_src / $logoW_src : 1;
+
+            $mainFiles   = $_FILES['wm_main'];
+            $fileCount   = count($mainFiles['name']);
+            $errorFiles  = [];
+            $outputPaths = [];
+
+            for ($i = 0; $i < $fileCount; $i++) {
+                $mainMime = mime_content_type($mainFiles['tmp_name'][$i]);
+                if (!in_array($mainMime, $whitelist)) {
+                    $errorFiles[] = htmlspecialchars($mainFiles['name'][$i]);
+                    continue;
+                }
+
+                $main = loadImageFromFile($mainFiles['tmp_name'][$i], $mainMime);
+                if (!$main) { $errorFiles[] = htmlspecialchars($mainFiles['name'][$i]); continue; }
+
+                $mW = imagesx($main); $mH = imagesy($main);
+
+                // Wasserzeichen für dieses Bild skalieren
+                $targetW = intval($mW * $wmScale / 100);
+                $targetH = intval($targetW * $logoRatio);
+                $logoScaled = imagecreatetruecolor($targetW, $targetH);
+                imagealphablending($logoScaled, false);
+                imagesavealpha($logoScaled, true);
+                $transparent = imagecolorallocatealpha($logoScaled, 0, 0, 0, 127);
+                imagefilledrectangle($logoScaled, 0, 0, $targetW, $targetH, $transparent);
+                imagecopyresampled($logoScaled, $logoSrc, 0, 0, 0, 0, $targetW, $targetH, $logoW_src, $logoH_src);
+
+                // Position berechnen
+                [$posV, $posH] = explode('-', $position) + ['center', 'center'];
+                $x = match($posH) {
+                    'left'   => $margin,
+                    'right'  => $mW - $targetW - $margin,
+                    default  => intval(($mW - $targetW) / 2),
+                };
+                $y = match($posV) {
+                    'top'    => $margin,
+                    'bottom' => $mH - $targetH - $margin,
+                    default  => intval(($mH - $targetH) / 2),
+                };
+
+                imagecopymerge($main, $logoScaled, $x, $y, 0, 0, $targetW, $targetH, $opacity);
+                imagedestroy($logoScaled);
+
+                $origName   = pathinfo(basename($mainFiles['name'][$i]), PATHINFO_FILENAME);
+                $outputPath = $outDir . $origName . '_watermarked.png';
+                imagepng($main, $outputPath);
+                imagedestroy($main);
+                $outputPaths[] = $outputPath;
+            }
+
+            imagedestroy($logoSrc);
+
+            if (count($outputPaths) === 0) {
+                $msgWatermark = "<div class='alert alert-danger shadow-sm rounded-3'>
+                                    <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                                    Kein Bild konnte verarbeitet werden.
+                                </div>";
+            } elseif (count($outputPaths) === 1) {
+                $msgWatermark = "<div class='alert alert-success shadow-sm rounded-3'>
+                                    <i class='bi bi-check-circle-fill me-2'></i>
+                                    Wasserzeichen erfolgreich hinzugefügt.<br>
+                                    <a href='{$outputPaths[0]}' download class='btn btn-primary btn-submit fw-semibold mt-2'>
+                                        <i class='bi bi-download me-1'></i>Bild herunterladen
+                                    </a>
+                                </div>";
+            } else {
+                $msgWatermark = "<div class='alert alert-success shadow-sm rounded-3'>
+                                    <i class='bi bi-check-circle-fill me-2'></i>
+                                    " . count($outputPaths) . " Bilder mit Wasserzeichen versehen.<br>
+                                    <a href='download.php?unique_id=" . urlencode($uniqueId) . "&edit_type=watermark' class='btn btn-primary btn-submit fw-semibold mt-2'>
+                                        <i class='bi bi-download me-1'></i>Bilder herunterladen
+                                    </a>
+                                </div>";
+            }
+
+            if (!empty($errorFiles)) {
+                $msgWatermark .= "<div class='alert alert-warning shadow-sm rounded-3 mt-2'>
+                                    <i class='bi bi-exclamation-triangle-fill me-2'></i>
+                                    Folgende Dateien konnten nicht verarbeitet werden: " . implode(', ', $errorFiles) . "
+                                  </div>";
+            }
+        }
     }
 }
 ?>
@@ -266,13 +409,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         class="btn btn-sm btn-outline-primary fw-semibold"
                         data-target="content3">
                         <i class="bi bi-file-earmark-image" aria-hidden="true"></i>
-                        <span class="nav-label">WebP</span>
+                        <span class="nav-label">Konvertieren</span>
                     </button>
                     <button type="button"
                         class="btn btn-sm btn-outline-primary fw-semibold"
                         data-target="content4">
                         <i class="bi bi-scissors" aria-hidden="true"></i>
                         <span class="nav-label">Hintergrund</span>
+                    </button>
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary fw-semibold"
+                        data-target="content6">
+                        <i class="bi bi-badge-tm" aria-hidden="true"></i>
+                        <span class="nav-label">Wasserzeichen</span>
                     </button>
                     <button type="button"
                         class="btn btn-sm btn-outline-primary fw-semibold"
@@ -307,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
 
                 <!-- Preview / Canvas -->
                 <div class="mb-3">
-                    <div class="p-3 rounded-3 border bg-body-secondary">
+                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
                         <p class="fw-semibold text-secondary small text-uppercase mb-2 tracking-wide">
                             <i class="bi bi-image me-1"></i>Vorschau
                         </p>
@@ -315,14 +464,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         <!-- Canvas + Drag Handles (hidden until image loaded) -->
                         <div class="crop-handle-wrapper" style="display:none;">
                             <canvas id="crop-canvas-full" aria-label="Crop-Vorschau"></canvas>
+                            <!-- Kanten-Handles -->
                             <div class="crop-handle crop-handle-left"   data-side="left"   title="Links ziehen"></div>
                             <div class="crop-handle crop-handle-top"    data-side="top"    title="Oben ziehen"></div>
                             <div class="crop-handle crop-handle-right"  data-side="right"  title="Rechts ziehen"></div>
                             <div class="crop-handle crop-handle-bottom" data-side="bottom" title="Unten ziehen"></div>
+                            <!-- Ecken-Handles -->
+                            <div class="crop-handle crop-handle-nw" data-corner="nw" title="Ecke ziehen"></div>
+                            <div class="crop-handle crop-handle-ne" data-corner="ne" title="Ecke ziehen"></div>
+                            <div class="crop-handle crop-handle-sw" data-corner="sw" title="Ecke ziehen"></div>
+                            <div class="crop-handle crop-handle-se" data-corner="se" title="Ecke ziehen"></div>
                         </div>
 
                         <div class="image-name text-muted">Keine Datei ausgewählt.</div>
                         <p id="crop-dimensions" class="text-muted small mb-0 mt-1"></p>
+                        <p class="text-muted small mt-2 mb-0 drag-hint"><i class="bi bi-upload me-1"></i>Datei auswählen oder hierher ziehen</p>
                     </div>
                 </div>
 
@@ -340,7 +496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                             <span class="text-muted fw-normal">(max. 256 MB)</span>
                         </label>
                         <div class="input-group">
-                            <input type="file" class="form-control" id="cropImageInput" name="cropImage"
+                            <input type="file" class="form-control file-input" id="cropImageInput" name="cropImage"
                                 accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif" required>
                             <button type="button" id="crop-clear-btn" title="Auswahl löschen"
                                 class="btn btn-outline-danger" disabled>
@@ -351,6 +507,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                             <i class="bi bi-info-circle me-1"></i>
                             Zuschneidebereiche per Pixeleingabe festlegen oder direkt im Vorschaubild verschieben.
                         </small>
+                    </div>
+
+                    <!-- Aspect Ratio Lock -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-aspect-ratio me-1"></i>Seitenverhältnis</label>
+                        <div class="crop-ratio-bar">
+                            <button type="button" class="btn-ratio active" data-ratio="">Frei</button>
+                            <button type="button" class="btn-ratio" data-ratio="1:1">1:1</button>
+                            <button type="button" class="btn-ratio" data-ratio="4:3">4:3</button>
+                            <button type="button" class="btn-ratio" data-ratio="3:4">3:4</button>
+                            <button type="button" class="btn-ratio" data-ratio="16:9">16:9</button>
+                            <button type="button" class="btn-ratio" data-ratio="9:16">9:16</button>
+                            <button type="button" class="btn-ratio" data-ratio="3:2">3:2</button>
+                            <button type="button" class="btn-ratio" data-ratio="2:3">2:3</button>
+                            <button type="button" class="btn-ratio" data-ratio="2:1">2:1</button>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-4">
@@ -422,6 +594,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         <img class="image-preview img-fluid rounded-2" src="" alt="Bildvorschau"
                             style="display:none; max-height:400px;">
                         <div class="image-name text-muted">Keine Datei ausgewählt.</div>
+                        <p class="text-muted small mt-2 mb-0 drag-hint"><i class="bi bi-upload me-1"></i>Datei auswählen oder hierher ziehen</p>
                     </div>
                 </div>
 
@@ -493,7 +666,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
              ============================================================ -->
         <section id="content3" class="content-section">
             <div class="container">
-            <h2 class="display-6 fw-semibold mb-4">WebP Konvertierung</h2>
+            <h2 class="display-6 fw-semibold mb-4">Konvertieren</h2>
             <?php echo $msgwebpConvert; ?>
 
             <form method="POST" enctype="multipart/form-data" class="server-form">
@@ -506,6 +679,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         <img class="image-preview img-fluid rounded-2" src="" alt="Bildvorschau"
                             style="display:none; max-height:400px;">
                         <div class="image-name text-muted">Keine Datei(en) ausgewählt.</div>
+                        <p class="text-muted small mt-2 mb-0 drag-hint"><i class="bi bi-upload me-1"></i>Dateien auswählen oder hierher ziehen</p>
                     </div>
                 </div>
 
@@ -535,12 +709,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </div>
                         <small class="text-muted mt-1 d-block">
                             <i class="bi bi-info-circle me-1"></i>
-                            Ausgabequalität: 80 % WebP. Mehrere Bilder werden als ZIP-Datei gebündelt.
+                            Mehrere Bilder werden als ZIP-Datei gebündelt.
                         </small>
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label"><i class="bi bi-file-earmark me-1"></i>Ausgabeformat</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="output_format" id="fmt-webp" value="webp" checked>
+                                <label class="form-check-label" for="fmt-webp">WebP</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="output_format" id="fmt-jpeg" value="jpeg">
+                                <label class="form-check-label" for="fmt-jpeg">JPEG</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="quality-slider" class="form-label">
+                            <i class="bi bi-sliders me-1"></i>Ausgabequalität:
+                            <span id="quality-value" class="fw-semibold">80</span> %
+                        </label>
+                        <input type="range" class="form-range" id="quality-slider" name="quality"
+                            min="50" max="100" step="5" value="80">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">50 % (kleinere Datei)</small>
+                            <small class="text-muted">100 % (beste Qualität)</small>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold" disabled>
-                        <i class="bi bi-file-earmark-image me-2" aria-hidden="true"></i>In WebP konvertieren
+                        <i class="bi bi-file-earmark-image me-2" aria-hidden="true"></i>Konvertieren
                     </button>
                 </div>
             </form>
@@ -553,6 +754,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
         <section id="content4" class="content-section">
             <div class="container">
             <h2 class="display-6 fw-semibold mb-4">Hintergrund entfernen</h2>
+
+            <form>
                 <!-- Image Preview -->
                 <div class="mb-3">
                     <div class="p-3 rounded-3 border bg-body-secondary image-preview-container">
@@ -561,6 +764,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         </p>
                         <img id="bg-preview-img" class="image-preview" style="display:none; max-width:100%; border-radius:0.375rem;" alt="Vorschau">
                         <span id="bg-file-name" class="image-name text-muted">Keine Datei ausgewählt.</span>
+                        <p class="text-muted small mt-2 mb-0 drag-hint"><i class="bi bi-upload me-1"></i>Datei auswählen oder hierher ziehen</p>
                     </div>
                 </div>
 
@@ -579,7 +783,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                             <i class="bi bi-upload me-1"></i>Bild auswählen
                         </label>
                         <div class="input-group">
-                            <input type="file" class="form-control" id="bg-file-input"
+                            <input type="file" class="form-control file-input" id="bg-file-input"
                                 accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif">
                             <button type="button" id="bg-clear-btn" title="Auswahl löschen"
                                 class="btn btn-outline-danger" disabled>
@@ -649,6 +853,140 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                     </div>
 
                 </div>
+            </form>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             SECTION 6: WASSERZEICHEN
+             ============================================================ -->
+        <section id="content6" class="content-section">
+            <div class="container">
+            <h2 class="display-6 fw-semibold mb-4">Wasserzeichen</h2>
+            <?php echo $msgWatermark; ?>
+
+            <form method="post" enctype="multipart/form-data" class="server-form">
+
+                <!-- Live-Vorschau Canvas -->
+                <div class="mb-3">
+                    <div class="p-3 rounded-3 border bg-body-secondary image-preview-container" id="wm-main-preview-container">
+                        <p class="fw-semibold text-secondary small text-uppercase mb-2">
+                            <i class="bi bi-image me-1"></i>Vorschau
+                        </p>
+                        <canvas id="wm-preview-canvas" style="display:none; max-width:100%; border-radius:0.375rem;"></canvas>
+                        <div class="image-name text-muted" id="wm-main-name">Keine Datei ausgewählt.</div>
+                        <p class="text-muted small mt-2 mb-0 drag-hint"><i class="bi bi-upload me-1"></i>Datei auswählen oder hierher ziehen</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger shadow-sm visually-hidden alert-danger-max-file-size rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Die Größe des Uploads überschreitet die maximal zulässige Grenze von 256 MB.
+                </div>
+                <div class="alert alert-warning shadow-sm visually-hidden alert-danger-max-file-uploads rounded-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Bitte maximal 20 Dateien auswählen.
+                </div>
+
+                <div class="form-card card shadow-sm p-4">
+
+                    <!-- Hauptbild(er) -->
+                    <div class="mb-4">
+                        <label for="wm_main" class="form-label">
+                            <i class="bi bi-upload me-1"></i>Hauptbild(er)
+                            <span class="text-muted fw-normal">(max. 20 Dateien, max. 256 MB)</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="file" class="form-control file-input" id="wm_main" name="wm_main[]"
+                                accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif"
+                                required multiple>
+                            <button type="button" title="Auswahl löschen" class="btn btn-outline-danger clear-button" disabled>
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted mt-1 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Mehrere Bilder werden alle mit demselben Wasserzeichen versehen. Die Vorschau zeigt das erste Bild.
+                        </small>
+                    </div>
+
+                    <!-- Wasserzeichen-Bild -->
+                    <div class="mb-4">
+                        <label for="wm_logo" class="form-label">
+                            <i class="bi bi-award me-1"></i>Wasserzeichen-Bild
+                            <span class="text-muted fw-normal small">(PNG mit Transparenz empfohlen)</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="wm_logo" name="wm_logo"
+                                accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/avif" required>
+                        </div>
+                    </div>
+
+                    <!-- Position 3×3 Grid -->
+                    <div class="mb-4">
+                        <label class="form-label"><i class="bi bi-grid-3x3 me-1"></i>Position</label>
+                        <div class="wm-position-grid">
+                            <?php
+                            $positions = [
+                                'top-left'     => '↖', 'top-center'    => '↑', 'top-right'    => '↗',
+                                'center-left'  => '←', 'center-center' => '·', 'center-right' => '→',
+                                'bottom-left'  => '↙', 'bottom-center' => '↓', 'bottom-right' => '↘',
+                            ];
+                            foreach ($positions as $val => $label): ?>
+                                <label class="wm-pos-cell <?= $val === 'bottom-right' ? 'active' : '' ?>">
+                                    <input type="radio" name="wm_position" value="<?= $val ?>"
+                                        <?= $val === 'bottom-right' ? 'checked' : '' ?>>
+                                    <span><?= $label ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Größe des Wasserzeichens -->
+                    <div class="mb-4">
+                        <label for="wm-scale-slider" class="form-label">
+                            <i class="bi bi-arrows-angle-expand me-1"></i>Größe des Wasserzeichens:
+                            <span id="wm-scale-value" class="fw-semibold">25</span> % der Bildbreite
+                        </label>
+                        <input type="range" class="form-range" id="wm-scale-slider" name="wm_scale"
+                            min="5" max="80" step="5" value="25">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">5 % (klein)</small>
+                            <small class="text-muted">80 % (groß)</small>
+                        </div>
+                    </div>
+
+                    <!-- Deckkraft -->
+                    <div class="mb-4">
+                        <label for="wm-opacity-slider" class="form-label">
+                            <i class="bi bi-circle-half me-1"></i>Deckkraft:
+                            <span id="wm-opacity-value" class="fw-semibold">80</span> %
+                        </label>
+                        <input type="range" class="form-range" id="wm-opacity-slider" name="wm_opacity"
+                            min="10" max="100" step="5" value="80">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">10 % (transparent)</small>
+                            <small class="text-muted">100 % (deckend)</small>
+                        </div>
+                    </div>
+
+                    <!-- Randabstand -->
+                    <div class="mb-4">
+                        <label for="wm_margin" class="form-label">
+                            <i class="bi bi-border-outer me-1"></i>Randabstand
+                        </label>
+                        <div class="input-group" style="max-width:200px;">
+                            <input type="number" class="form-control" id="wm_margin" name="wm_margin"
+                                min="0" max="500" value="20" placeholder="20">
+                            <span class="input-group-text text-muted">px</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-lg btn-primary btn-submit fw-semibold" disabled>
+                        <i class="bi bi-badge-tm me-2" aria-hidden="true"></i>Wasserzeichen hinzufügen
+                    </button>
+                </div>
+            </form>
             </div>
         </section>
 
@@ -667,7 +1005,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                                 <i class="bi bi-crop fs-3 text-primary flex-shrink-0"></i>
                                 <div>
                                     <h3 class="fs-6 fw-semibold mb-1">Zuschneiden</h3>
-                                    <p class="text-muted small mb-0">Pixelgenaues Zuschneiden per Zahleneingabe oder durch Ziehen der Ränder im Vorschaubild.</p>
+                                    <p class="text-muted small mb-0">Pixelgenaues Zuschneiden per Zahleneingabe oder interaktiv im Vorschaubild. 4 Kanten- und 4 Ecken-Handles, Aspect Ratio Lock mit 8 Voreinstellungen (1:1, 4:3, 16:9 u.a.), Crop-Bereich per Drag verschieben.</p>
                                 </div>
                             </div>
                         </div>
@@ -684,8 +1022,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                             <div class="d-flex gap-3">
                                 <i class="bi bi-file-earmark-image fs-3 text-primary flex-shrink-0"></i>
                                 <div>
-                                    <h3 class="fs-6 fw-semibold mb-1">WebP-Konvertierung</h3>
-                                    <p class="text-muted small mb-0">Mehrere Bilder gleichzeitig ins WebP-Format konvertieren, gebündelt als ZIP-Archiv.</p>
+                                    <h3 class="fs-6 fw-semibold mb-1">Konvertieren</h3>
+                                    <p class="text-muted small mb-0">Mehrere Bilder gleichzeitig in WebP oder JPEG konvertieren, mit einstellbarer Qualität und ZIP-Download.</p>
                                 </div>
                             </div>
                         </div>
@@ -694,7 +1032,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                                 <i class="bi bi-scissors fs-3 text-primary flex-shrink-0"></i>
                                 <div>
                                     <h3 class="fs-6 fw-semibold mb-1">Hintergrund entfernen</h3>
-                                    <p class="text-muted small mb-0">KI-gestützte Hintergrundentfernung vollständig im Browser. Kein Upload auf externe Server, kein API-Key nötig. Das Modell wird einmalig geladen und danach im Browser gecacht.</p>
+                                    <p class="text-muted small mb-0">KI-gestützte Hintergrundentfernung vollständig im Browser. Das Bild wird nicht an einen Server übertragen. Das Modell wird einmalig geladen und danach im Browser gespeichert.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-3">
+                                <i class="bi bi-badge-tm fs-3 text-primary flex-shrink-0"></i>
+                                <div>
+                                    <h3 class="fs-6 fw-semibold mb-1">Wasserzeichen</h3>
+                                    <p class="text-muted small mb-0">Wasserzeichen-Bild auf bis zu 20 Hauptbilder gleichzeitig anwenden, mit wählbarer Position (3x3-Grid), Größe, Deckkraft und Randabstand. Live-Vorschau im Browser, ZIP-Download bei Mehrfach-Upload.</p>
                                 </div>
                             </div>
                         </div>
@@ -717,7 +1064,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         <i class="bi bi-shield-check fs-3 text-success flex-shrink-0"></i>
                         <div>
                             <p class="mb-2">Hochgeladene Bilder werden ausschließlich zur Verarbeitung verwendet und <strong>automatisch nach einer Stunde</strong> vom Server gelöscht.</p>
-                            <p class="mb-2">Die <strong>Hintergrundentfernung</strong> findet vollständig im Browser statt. Das Bild verlässt dabei den lokalen Rechner nicht.</p>
+                            <p class="mb-2">Die <strong>Hintergrundentfernung</strong> läuft vollständig im Browser. Das Bild wird nicht an einen Server übertragen.</p>
                             <p class="mb-0 text-muted small">Es werden keine personenbezogenen Daten gespeichert oder weitergegeben.</p>
                         </div>
                     </div>

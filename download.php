@@ -1,7 +1,7 @@
 <?php
-if (isset($_GET['unique_id']) && isset($_GET['original_name']) && isset($_GET['edit_type'])) {
+if (isset($_GET['unique_id']) && isset($_GET['edit_type'])) {
     $uniqueId = basename($_GET['unique_id']);
-    $originalName = basename($_GET['original_name']);
+    $originalName = isset($_GET['original_name']) ? basename($_GET['original_name']) : '';
     $editType = $_GET['edit_type'];
 
     // Bestimmen des Verzeichnispfads und des ZIP-Dateinamens je nachdem, ob der User skaliert oder konvertiert hat
@@ -14,6 +14,16 @@ if (isset($_GET['unique_id']) && isset($_GET['original_name']) && isset($_GET['e
         case 'webp':
             $dir = "./bilder/$uniqueId/webp_images";
             $zipFileName = "{$uniqueId}_webp_images.zip";
+            break;
+
+        case 'jpeg':
+            $dir = "./bilder/$uniqueId/jpeg_images";
+            $zipFileName = "{$uniqueId}_jpeg_images.zip";
+            break;
+
+        case 'watermark':
+            $dir = "./bilder/$uniqueId/watermarked";
+            $zipFileName = "{$uniqueId}_watermarked.zip";
             break;
 
         default:
