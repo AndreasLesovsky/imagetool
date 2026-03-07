@@ -67,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
                 if ($croppedImage !== FALSE) {
                     $croppedPath = "$dir/" . pathinfo($originalName, PATHINFO_FILENAME) . "_cropped.png";
                     imagepng($croppedImage, $croppedPath);
-                    imagedestroy($croppedImage);
 
                     $msgCrop .= "<div class='alert alert-success container shadow-sm rounded-3'>
                                     <h3 class='fs-5 fw-semibold mb-2'>Zugeschnittenes Bild:</h3>
@@ -85,7 +84,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cropImage'])) {
                                 </div>";
                 }
 
-                imagedestroy($image);
             }
         } else {
             $msgCrop = "<div class='alert alert-danger container shadow-sm rounded-3'>
@@ -177,7 +175,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         $height = imagesy($image);
                         $newImage = imagecreatetruecolor($width, $height);
                         imagecopy($newImage, $image, 0, 0, 0, 0, $width, $height);
-                        imagedestroy($image);
                         $image = $newImage;
                     }
                 } elseif ($fileType == 'image/gif') {
@@ -197,11 +194,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webpConvert'])) {
                         imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
                         imagecopy($bg, $image, 0, 0, 0, 0, imagesx($image), imagesy($image));
                         imagejpeg($bg, $outputPath, $quality);
-                        imagedestroy($bg);
                     } else {
                         imagewebp($image, $outputPath, $quality);
                     }
-                    imagedestroy($image);
                 }
             } else {
                 $msgwebpConvert .= "<div class='alert alert-danger shadow-sm rounded-3'>
@@ -299,6 +294,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
                 $main = loadImageFromFile($mainFiles['tmp_name'][$i], $mainMime);
                 if (!$main) { $errorFiles[] = htmlspecialchars($mainFiles['name'][$i]); continue; }
 
+                imagealphablending($main, true);
+                imagesavealpha($main, true);
+
                 $mW = imagesx($main); $mH = imagesy($main);
 
                 // Wasserzeichen für dieses Bild skalieren
@@ -324,17 +322,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['wm_main']) && isset(
                     default  => intval(($mH - $targetH) / 2),
                 };
 
-                imagecopymerge($main, $logoScaled, $x, $y, 0, 0, $targetW, $targetH, $opacity);
-                imagedestroy($logoScaled);
+                if ($opacity < 100) {
+                    for ($px = 0; $px < $targetW; $px++) {
+                        for ($py = 0; $py < $targetH; $py++) {
+                            $color = imagecolorat($logoScaled, $px, $py);
+                            $a = ($color >> 24) & 0x7F;
+                            $newA = intval(127 - (127 - $a) * $opacity / 100);
+                            $r = ($color >> 16) & 0xFF;
+                            $g = ($color >> 8) & 0xFF;
+                            $b = $color & 0xFF;
+                            imagesetpixel($logoScaled, $px, $py, imagecolorallocatealpha($logoScaled, $r, $g, $b, $newA));
+                        }
+                    }
+                }
+                imagecopy($main, $logoScaled, $x, $y, 0, 0, $targetW, $targetH);
 
                 $origName   = pathinfo(basename($mainFiles['name'][$i]), PATHINFO_FILENAME);
                 $outputPath = $outDir . $origName . '_watermarked.png';
                 imagepng($main, $outputPath);
-                imagedestroy($main);
                 $outputPaths[] = $outputPath;
             }
-
-            imagedestroy($logoSrc);
 
             if (count($outputPaths) === 0) {
                 $msgWatermark = "<div class='alert alert-danger shadow-sm rounded-3'>
